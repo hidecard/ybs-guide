@@ -1,8 +1,7 @@
 
-import { GoogleGenAI } from "@google/genai";
 import { YBS_ROUTES } from "../data/busData";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+declare const puter: any;
 
 /**
  * Utility to strip markdown symbols that clutter the UI
@@ -26,16 +25,13 @@ ${YBS_ROUTES.map(r => `Bus ${r.id}: ${r.stops.join(" - ")}`).join("\n")}`;
 
 export const getAIRouteSuggestion = async (from: string, to: string) => {
   const context = getBusDataContext();
-  const prompt = `User wants to go from "${from}" to "${to}". Suggest the best bus number(s). 
+  const prompt = `User wants to go from "${from}" to "${to}". Suggest the best bus number(s).
   - ALWAYS provide the answer in BOTH Myanmar language and English.
   - DO NOT USE markdown symbols like ** or ##. Use plain text only.`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: context + "\n\n" + prompt,
-    });
-    return cleanText(response.text || "");
+    const response = await puter.ai.chat(context + "\n\n" + prompt, { model: 'gemini-3-flash-preview' });
+    return cleanText(response || "");
   } catch (error) {
     return "AI ဝန်ဆောင်မှု မရနိုင်သေးပါ။ / AI service is currently unavailable.";
   }
@@ -59,15 +55,10 @@ export const chatWithAI = async (message: string) => {
 };
 
 export const getDiscoveryInfo = async () => {
+  const prompt = "Proactively check Yangon weather and provide a transit advisory. 1. Describe current weather and suggest an umbrella if rainy/cloudy. 2. Provide 3 proactive tips for YBS card users (top-up, balance check, tapping rule). Entire response MUST be in BOTH Myanmar and English. NO MARKDOWN SYMBOLS like ** or ##. Use plain text only.";
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: "Proactively check Yangon weather and provide a transit advisory. 1. Describe current weather and suggest an umbrella if rainy/cloudy. 2. Provide 3 proactive tips for YBS card users (top-up, balance check, tapping rule). Entire response MUST be in BOTH Myanmar and English. NO MARKDOWN SYMBOLS like ** or ##. Use plain text only.",
-      config: {
-        tools: [{ googleSearch: {} }],
-      }
-    });
-    return cleanText(response.text || "");
+    const response = await puter.ai.chat(prompt, { model: 'gemini-3-flash-preview' });
+    return cleanText(response || "");
   } catch (error) {
     return "Discovery info unavailable. / အချက်အလက်များ မရနိုင်ပါ။";
   }
