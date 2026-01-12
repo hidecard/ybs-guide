@@ -384,7 +384,7 @@ const BusList: React.FC = () => {
 
 const AIAssistant: React.FC = () => {
   const [messages, setMessages] = useState<{role: 'user' | 'ai', text: string}[]>([
-    { role: 'ai', text: 'Neural system active. ကျွန်တော်က YBS Nova AI အကူပါ။ ဘာများကူညီပေးရမလဲ? \n\nHello! I am YBS Nova AI. Ask me about routes, weather, or YBS cards!' }
+    { role: 'ai', text: 'Neural system active. ကျွန်တော်က YBS AI အကူပါ။ ဘာများကူညီပေးရမလဲ? \n\nHello! I am YBS AI. Ask me about routes, weather, or YBS cards!' }
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -422,7 +422,7 @@ const AIAssistant: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto flex flex-col h-[calc(100vh-160px)] animate-fadeIn">
       <div className="mb-8 space-y-1">
-        <h2 className="text-3xl font-black uppercase tracking-tight">Nova <span className="text-yellow-400">Assistant</span></h2>
+        <h2 className="text-3xl font-black uppercase tracking-tight">YBS <span className="text-yellow-400">Assistant</span></h2>
         <p className="text-[10px] font-black tracking-widest text-slate-500 uppercase flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Grounded Intelligence / အဆင့်မြင့် အချက်အလက်စနစ်
         </p>
@@ -463,7 +463,7 @@ const AIAssistant: React.FC = () => {
         )}
       </div>
       <div className="glass p-3 rounded-[32px] border border-white/10 flex gap-3 focus-within:border-yellow-400/30 transition-all shadow-2xl relative z-[60] bg-slate-900/60">
-        <input type="text" placeholder="Message Nova assistant..." className="flex-1 bg-transparent border-none outline-none px-4 text-sm font-bold myanmar-font text-slate-100 placeholder:text-slate-700" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendMessage()} />
+        <input type="text" placeholder="Message YBS Ai assistant..." className="flex-1 bg-transparent border-none outline-none px-4 text-sm font-bold myanmar-font text-slate-100 placeholder:text-slate-700" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendMessage()} />
         <button onClick={sendMessage} disabled={isTyping} className="bg-yellow-400 text-slate-950 p-4 rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-lg shadow-yellow-400/20"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg></button>
       </div>
     </div>
