@@ -116,7 +116,7 @@ const App: React.FC = () => {
             </svg>
           </div>
           <div className="flex flex-col leading-tight">
-            <h1 className="text-xl font-black tracking-tighter uppercase">YBS <span className="text-yellow-400">Nova</span></h1>
+            <h1 className="text-xl font-black tracking-tighter uppercase">YBS <span className="text-yellow-400">Ai</span></h1>
             <span className="text-[10px] font-bold myanmar-font text-slate-500 uppercase tracking-widest leading-none mt-1">Intelligent Hub</span>
           </div>
         </div>
@@ -134,7 +134,7 @@ const App: React.FC = () => {
                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
             </div>
             <div className="flex flex-col leading-none">
-              <span className="font-black text-sm uppercase tracking-tight">YBS NOVA</span>
+              <span className="font-black text-sm uppercase tracking-tight">YBS Ai</span>
               <span className="text-[9px] myanmar-font font-bold text-slate-500 mt-0.5">Transit Intelligence / ဗဟိုချက်</span>
             </div>
           </div>
