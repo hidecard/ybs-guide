@@ -1,0 +1,5 @@
+{
+  "name": "Yangon Bus Guide (YBS) AI",
+  "description": "A comprehensive bus route finder and stop directory for Yangon, featuring AI-powered route suggestions and transfer support.",
+  "requestFramePermissions": []
+}

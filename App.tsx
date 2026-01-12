@@ -1,0 +1,442 @@
+
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { ViewMode, BusRoute } from './types';
+import { YBS_ROUTES } from './data/busData';
+import { getAIRouteSuggestion, chatWithAI, getDiscoveryInfo, cleanText } from './services/geminiService';
+
+const ITEMS_PER_PAGE = 12;
+
+const NavItem: React.FC<{ 
+  id: ViewMode; 
+  active: boolean; 
+  label: string; 
+  labelMm: string;
+  icon: string; 
+  onClick: () => void 
+}> = ({ id, active, label, labelMm, icon, onClick }) => (
+  <button
+    onClick={onClick}
+    className={`flex items-center gap-3 px-5 py-4 rounded-2xl transition-all duration-300 relative group w-full ${
+      active ? 'text-yellow-400' : 'text-slate-400 hover:text-slate-200'
+    }`}
+  >
+    <div className={`transition-transform duration-300 ${active ? 'scale-110' : 'group-hover:scale-105'}`}>
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={icon} />
+      </svg>
+    </div>
+    <div className="flex flex-col items-start leading-none">
+      <span className="text-[10px] font-black tracking-widest uppercase">{label}</span>
+      <span className="text-[11px] font-bold myanmar-font mt-1">{labelMm}</span>
+    </div>
+    {active && <div className="absolute left-0 w-1.5 h-8 bg-yellow-400 rounded-full glow-yellow"></div>}
+  </button>
+);
+
+const RouteDetailModal: React.FC<{ bus: BusRoute; onClose: () => void }> = ({ bus, onClose }) => (
+  <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6 animate-fadeIn">
+    <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-xl" onClick={onClose}></div>
+    <div className="relative w-full max-w-2xl max-h-[90vh] glass rounded-[40px] border border-white/20 shadow-2xl flex flex-col overflow-hidden">
+      <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-black text-2xl shadow-xl border border-white/10" style={{ backgroundColor: bus.color || '#3b82f6' }}>
+            {bus.id}
+          </div>
+          <div>
+            <h3 className="font-black text-white uppercase tracking-tight italic text-xl">LINE {bus.id} | လိုင်း {bus.id}</h3>
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">{bus.operator || 'Yangon Bus Service'}</p>
+          </div>
+        </div>
+        <button onClick={onClose} className="p-3 bg-white/5 rounded-2xl text-slate-400 hover:bg-white/10 transition-colors border border-white/10">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+      </div>
+      <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-6">
+        <div className="relative">
+          <div className="absolute left-[15px] top-2 bottom-2 w-0.5 bg-gradient-to-b from-yellow-400 via-slate-700 to-yellow-400 opacity-30"></div>
+          {bus.stops.map((stop, idx) => (
+            <div key={idx} className="flex items-start gap-6 mb-6 group">
+              <div className={`relative z-10 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
+                idx === 0 || idx === bus.stops.length - 1 ? 'border-yellow-400 bg-yellow-400/20' : 'border-slate-700 bg-slate-900'
+              }`}>
+                <div className={`w-2.5 h-2.5 rounded-full ${idx === 0 || idx === bus.stops.length - 1 ? 'bg-yellow-400 glow-yellow' : 'bg-slate-500'}`}></div>
+              </div>
+              <div className="flex-1 pt-0.5">
+                <span className={`myanmar-font text-base font-bold transition-colors ${
+                  idx === 0 || idx === bus.stops.length - 1 ? 'text-yellow-400' : 'text-slate-300'
+                }`}>
+                  {stop}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+const App: React.FC = () => {
+  const [activeView, setActiveView] = useState<ViewMode>(ViewMode.EXPLORE);
+  const [savedTrips, setSavedTrips] = useState<{from: string, to: string}[]>(() => {
+    const saved = localStorage.getItem('ybs_saved_trips');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const tabs = [
+    { id: ViewMode.EXPLORE, label: 'Explore', labelMm: 'လေ့လာရန်', icon: 'M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 002 2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+    { id: ViewMode.ROUTE_FINDER, label: 'Finder', labelMm: 'ရှာဖွေရန်', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
+    { id: ViewMode.BUS_LIST, label: 'Lines', labelMm: 'လိုင်းများ', icon: 'M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z' },
+    { id: ViewMode.AI_ASSISTANT, label: 'Assistant', labelMm: 'အေအိုင်', icon: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z' },
+  ];
+
+  const handleSaveTrip = (trip: {from: string, to: string}) => {
+    const newSaved = [trip, ...savedTrips.filter(t => t.from !== trip.from || t.to !== trip.to)].slice(0, 5);
+    setSavedTrips(newSaved);
+    localStorage.setItem('ybs_saved_trips', JSON.stringify(newSaved));
+  };
+
+  const renderContent = () => {
+    switch (activeView) {
+      case ViewMode.EXPLORE: return <ExploreDashboard savedTrips={savedTrips} onSelectSaved={(t) => { setActiveView(ViewMode.ROUTE_FINDER); }} />;
+      case ViewMode.BUS_LIST: return <BusList />;
+      case ViewMode.ROUTE_FINDER: return <RouteFinder onTripSearched={handleSaveTrip} />;
+      case ViewMode.AI_ASSISTANT: return <AIAssistant />;
+      default: return <ExploreDashboard savedTrips={savedTrips} onSelectSaved={() => {}} />;
+    }
+  };
+
+  return (
+    <div className="flex h-screen overflow-hidden bg-slate-950">
+      <aside className="hidden lg:flex flex-col w-72 glass border-r border-white/5 p-6 space-y-8 z-30">
+        <div className="flex items-center gap-3 px-2">
+          <div className="bg-yellow-400 p-2 rounded-xl text-slate-950 glow-yellow">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <div className="flex flex-col leading-tight">
+            <h1 className="text-xl font-black tracking-tighter uppercase">YBS <span className="text-yellow-400">Nova</span></h1>
+            <span className="text-[10px] font-bold myanmar-font text-slate-500 uppercase tracking-widest leading-none mt-1">Intelligent Hub</span>
+          </div>
+        </div>
+        <nav className="flex-1 space-y-2">
+          {tabs.map(tab => (
+            <NavItem key={tab.id} id={tab.id as any} label={tab.label} labelMm={tab.labelMm} icon={tab.icon} active={activeView === tab.id} onClick={() => setActiveView(tab.id as any)} />
+          ))}
+        </nav>
+      </aside>
+
+      <div className="flex-1 flex flex-col relative overflow-hidden">
+        <header className="lg:hidden glass border-b border-white/5 p-5 flex justify-between items-center z-30">
+          <div className="flex items-center gap-2">
+            <div className="bg-yellow-400 p-1.5 rounded-lg text-slate-950 shadow-lg">
+               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+            </div>
+            <div className="flex flex-col leading-none">
+              <span className="font-black text-sm uppercase tracking-tight">YBS NOVA</span>
+              <span className="text-[9px] myanmar-font font-bold text-slate-500 mt-0.5">Transit Intelligence / ဗဟိုချက်</span>
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 overflow-y-auto custom-scrollbar bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950 pb-24 lg:pb-0">
+          <div className="p-4 md:p-10 max-w-6xl mx-auto">
+            {renderContent()}
+          </div>
+        </main>
+
+        <nav className="lg:hidden fixed bottom-6 left-6 right-6 h-20 glass border border-white/10 rounded-3xl flex items-center justify-around px-2 z-[50] shadow-2xl">
+          {tabs.map(tab => (
+            <button key={tab.id} onClick={() => setActiveView(tab.id as any)} className={`flex flex-col items-center gap-1 transition-all ${activeView === tab.id ? 'text-yellow-400' : 'text-slate-500'}`}>
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={tab.icon} /></svg>
+              <span className="text-[8px] font-black uppercase tracking-widest leading-none">{tab.label}</span>
+              <span className="text-[9px] myanmar-font font-bold leading-none">{tab.labelMm}</span>
+            </button>
+          ))}
+        </nav>
+      </div>
+    </div>
+  );
+};
+
+const ExploreDashboard: React.FC<{savedTrips: {from: string, to: string}[], onSelectSaved: (trip: {from: string, to: string}) => void}> = ({savedTrips, onSelectSaved}) => {
+  const [discovery, setDiscovery] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getDiscoveryInfo().then(res => {
+      setDiscovery(res);
+      setLoading(false);
+    });
+  }, []);
+
+  return (
+    <div className="space-y-12 animate-fadeIn">
+      <div className="space-y-10">
+        {/* Unified Discovery Advisory Panel */}
+        <div className="glass p-8 md:p-12 rounded-[48px] border border-white/10 relative overflow-hidden group bg-slate-900/40">
+          <div className="absolute top-0 right-0 p-12 opacity-5 group-hover:scale-110 transition-transform">
+             <svg className="w-48 h-48 text-yellow-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+          </div>
+          <div className="flex flex-col gap-2 relative z-10 mb-8 border-b border-white/5 pb-6">
+            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-yellow-400">Transit Advisory / လမ်းညွှန်ချက်</span>
+            <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter">Daily <span className="text-yellow-400">Telemetry</span></h2>
+          </div>
+          
+          <div className="relative z-10">
+            {loading ? (
+              <div className="space-y-8">
+                <div className="h-16 loading-shimmer rounded-3xl"></div>
+                <div className="h-96 loading-shimmer rounded-3xl opacity-30"></div>
+              </div>
+            ) : (
+              <div className="myanmar-font text-base md:text-lg font-bold text-slate-200 whitespace-pre-wrap leading-relaxed space-y-8 pr-2 max-h-[70vh] overflow-y-auto no-scrollbar">
+                {discovery}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Remini Section (History) */}
+        <div className="space-y-4">
+           <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 ml-4 flex items-center gap-2">
+             <span className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.6)]"></span>
+             Remini: Recent History / လတ်တလော မှတ်တမ်း
+           </h3>
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+             {savedTrips.length > 0 ? savedTrips.map((trip, i) => (
+               <button 
+                 key={i} 
+                 onClick={() => onSelectSaved(trip)}
+                 className="glass p-6 rounded-[32px] hover:border-yellow-400/50 transition-all group flex items-center justify-between bg-white/5 border border-white/5"
+               >
+                 <div className="text-left">
+                   <div className="flex items-center gap-3 mb-2">
+                      <div className="w-2 h-2 rounded-full bg-yellow-400 glow-yellow"></div>
+                      <span className="myanmar-font text-sm font-bold truncate max-w-[150px]">{trip.from}</span>
+                   </div>
+                   <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full border border-yellow-400"></div>
+                      <span className="myanmar-font text-sm font-bold truncate max-w-[150px]">{trip.to}</span>
+                   </div>
+                 </div>
+                 <div className="p-3 bg-white/5 rounded-2xl opacity-40 group-hover:opacity-100 transition-all">
+                    <svg className="w-6 h-6 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                 </div>
+               </button>
+             )) : (
+               <div className="col-span-full glass p-12 rounded-[48px] text-center opacity-30 border-dashed border-white/10 flex flex-col items-center gap-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest">Logs Clear / မှတ်တမ်းမရှိသေးပါ။</p>
+               </div>
+             )}
+           </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const RouteFinder: React.FC<{onTripSearched?: (trip: {from: string, to: string}) => void}> = ({onTripSearched}) => {
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [results, setResults] = useState<BusRoute[]>([]);
+  const [aiResult, setAiResult] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [selectedBus, setSelectedBus] = useState<BusRoute | null>(null);
+
+  const handleSearch = async () => {
+    if (!from || !to) return;
+    setLoading(true);
+    setAiResult(null);
+    onTripSearched?.({from, to});
+    
+    const f = from.toLowerCase().trim();
+    const t = to.toLowerCase().trim();
+    const direct = YBS_ROUTES.filter(route => {
+      const fromIndex = route.stops.findIndex(s => s.toLowerCase().includes(f));
+      const toIndex = route.stops.findIndex(s => s.toLowerCase().includes(t));
+      return fromIndex !== -1 && toIndex !== -1 && fromIndex < toIndex;
+    });
+    setResults(direct);
+    
+    const aiSuggestion = await getAIRouteSuggestion(from, to);
+    setAiResult(aiSuggestion);
+    setLoading(false);
+  };
+
+  return (
+    <div className="space-y-12 animate-fadeIn">
+      {selectedBus && <RouteDetailModal bus={selectedBus} onClose={() => setSelectedBus(null)} />}
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-10">
+        <div className="xl:col-span-2 space-y-8">
+          <div className="space-y-2">
+            <h2 className="text-4xl font-black tracking-tight uppercase leading-none">Path <span className="text-yellow-400">Finder</span></h2>
+            <h3 className="myanmar-font text-2xl font-bold text-slate-300">လမ်းကြောင်း ရှာဖွေပါ</h3>
+          </div>
+          <div className="space-y-4">
+            <div className="group bg-white/5 border border-white/10 p-6 rounded-3xl focus-within:border-yellow-400/50 transition-all">
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Origin / အစမှတ်</label>
+              <div className="flex items-center gap-3">
+                <div className="w-2.5 h-2.5 rounded-full bg-yellow-400 glow-yellow"></div>
+                <input type="text" placeholder="Start Point..." className="bg-transparent border-none outline-none w-full text-lg font-bold myanmar-font text-white" value={from} onChange={(e) => setFrom(e.target.value)} />
+              </div>
+            </div>
+            <div className="flex justify-center -my-6 relative z-10">
+               <button onClick={() => { const tmp = from; setFrom(to); setTo(tmp); }} className="bg-slate-900 border border-white/10 p-3 rounded-xl hover:text-yellow-400 transition-all shadow-xl"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" /></svg></button>
+            </div>
+            <div className="group bg-white/5 border border-white/10 p-6 rounded-3xl focus-within:border-yellow-400/50 transition-all">
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Destination / အဆုံးမှတ်</label>
+              <div className="flex items-center gap-3">
+                <div className="w-2.5 h-2.5 rounded-full border-2 border-yellow-400"></div>
+                <input type="text" placeholder="Destination..." className="bg-transparent border-none outline-none w-full text-lg font-bold myanmar-font text-white" value={to} onChange={(e) => setTo(e.target.value)} />
+              </div>
+            </div>
+            <button onClick={handleSearch} disabled={loading} className="w-full bg-yellow-400 text-slate-950 py-5 rounded-3xl font-black uppercase tracking-widest text-sm hover:brightness-110 active:scale-95 transition-all shadow-xl shadow-yellow-400/20">
+              {loading ? 'Analyzing Data...' : 'Calculate Path / လမ်းကြောင်းရှာရန်'}
+            </button>
+          </div>
+        </div>
+
+        <div className="xl:col-span-3 space-y-6">
+          {loading ? (
+             <div className="space-y-4">{[1,2,3].map(i => <div key={i} className="h-32 glass rounded-3xl loading-shimmer"></div>)}</div>
+          ) : results.length > 0 || aiResult ? (
+            <div className="space-y-6">
+              {aiResult && (
+                <div className="glass-bright p-8 rounded-[40px] border border-white/10 space-y-6 relative bg-slate-900/40">
+                  <div className="flex items-center gap-3"><div className="h-0.5 w-10 bg-yellow-400"></div><span className="text-[10px] font-black tracking-widest uppercase text-yellow-400">AI Telemetry / အေအိုင် အကြံပြုချက်</span></div>
+                  <div className="text-lg myanmar-font font-semibold text-slate-200 whitespace-pre-wrap leading-relaxed">{aiResult}</div>
+                </div>
+              )}
+              <div className="grid grid-cols-1 gap-4">
+                {results.map(bus => (
+                  <div key={bus.id} className="glass p-6 rounded-3xl group hover:border-yellow-400/40 transition-all flex items-center justify-between bg-white/5">
+                    <div className="flex items-center gap-6">
+                      <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-white font-black text-3xl shadow-lg" style={{ backgroundColor: bus.color || '#3b82f6' }}>{bus.id}</div>
+                      <div>
+                        <h4 className="font-bold text-slate-100 uppercase">Bus {bus.id}</h4>
+                        <p className="text-xs text-slate-500 myanmar-font mt-1 truncate max-w-[200px]">{bus.stops[0]} ⇄ {bus.stops[bus.stops.length-1]}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => setSelectedBus(bus)} className="text-yellow-400 p-4 rounded-2xl bg-white/5 hover:bg-yellow-400 hover:text-slate-950 transition-all"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg></button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center text-center p-20 glass rounded-[60px] border-dashed border-white/5 opacity-10">
+               <h3 className="text-xl font-bold uppercase tracking-[0.3em] text-slate-800">Telemetry Ready</h3>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const BusList: React.FC = () => {
+  const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedBus, setSelectedBus] = useState<BusRoute | null>(null);
+  const filteredBuses = useMemo(() => YBS_ROUTES.filter(b => b.id.toLowerCase().includes(search.toLowerCase()) || b.stops.some(s => s.includes(search))), [search]);
+  const paginatedBuses = useMemo(() => filteredBuses.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE), [filteredBuses, currentPage]);
+
+  return (
+    <div className="space-y-10 animate-fadeIn">
+      {selectedBus && <RouteDetailModal bus={selectedBus} onClose={() => setSelectedBus(null)} />}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div className="space-y-2">
+          <h2 className="text-4xl font-black tracking-tight uppercase leading-none">System <span className="text-yellow-400">Inventory</span></h2>
+          <h3 className="myanmar-font text-2xl font-bold text-slate-300">ယာဉ်လိုင်းများ စာရင်း</h3>
+        </div>
+        <div className="relative group w-full md:w-96">
+          <input type="text" placeholder="Search lines... / ရှာဖွေပါ..." className="w-full glass-bright p-5 pl-12 rounded-2xl outline-none border border-white/10 focus:border-yellow-400/50 transition-all text-sm font-bold myanmar-font text-white" value={search} onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }} />
+          <svg className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {paginatedBuses.map(bus => (
+          <div key={bus.id} className="glass p-6 rounded-[32px] group hover:border-yellow-400/40 transition-all flex flex-col gap-6 bg-white/5 border border-white/5">
+            <div className="flex justify-between items-start">
+               <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-black text-2xl border border-white/10 shadow-lg" style={{ backgroundColor: bus.color || '#3b82f6' }}>{bus.id}</div>
+               <span className="px-3 py-1 bg-white/5 rounded-lg text-[8px] font-black uppercase text-slate-500 border border-white/10">{bus.operator || 'YBS'}</span>
+            </div>
+            <div className="space-y-3">
+              <h4 className="font-bold text-slate-100 uppercase tracking-wide text-xs">Route Overview / လမ်းကြောင်းအကျဉ်း</h4>
+              <div className="space-y-2">
+                 <div className="flex items-center gap-3 text-xs font-bold text-slate-400 myanmar-font"><div className="w-2 h-2 rounded-full bg-yellow-400"></div><span className="truncate">{bus.stops[0]}</span></div>
+                 <div className="flex items-center gap-3 text-xs font-bold text-slate-400 myanmar-font"><div className="w-2 h-2 rounded-full border border-yellow-400"></div><span className="truncate">{bus.stops[bus.stops.length-1]}</span></div>
+              </div>
+            </div>
+            <button onClick={() => setSelectedBus(bus)} className="w-full py-4 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-yellow-400 hover:border-yellow-400/30 transition-all">View Full Path</button>
+          </div>
+        ))}
+      </div>
+      <div className="flex justify-center gap-4 py-10">
+         <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="p-4 glass rounded-2xl disabled:opacity-20 text-slate-300 hover:text-yellow-400 transition-colors border border-white/5"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7" /></svg></button>
+         <div className="flex items-center px-6 glass rounded-2xl font-black text-xs tracking-widest text-slate-400 border border-white/5">{currentPage} / {Math.ceil(filteredBuses.length / ITEMS_PER_PAGE)}</div>
+         <button disabled={currentPage === Math.ceil(filteredBuses.length / ITEMS_PER_PAGE)} onClick={() => setCurrentPage(prev => prev + 1)} className="p-4 glass rounded-2xl disabled:opacity-20 text-slate-300 hover:text-yellow-400 transition-colors border border-white/5"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7" /></svg></button>
+      </div>
+    </div>
+  );
+};
+
+const AIAssistant: React.FC = () => {
+  const [messages, setMessages] = useState<{role: 'user' | 'ai', text: string}[]>([
+    { role: 'ai', text: 'Neural system active. ကျွန်တော်က YBS Nova AI အကူပါ။ ဘာများကူညီပေးရမလဲ? \n\nHello! I am YBS Nova AI. Ask me about routes, weather, or YBS cards!' }
+  ]);
+  const [input, setInput] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages, isTyping]);
+
+  const sendMessage = async () => {
+    if (!input.trim() || isTyping) return;
+    const userMsg = input;
+    setInput('');
+    setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+    setIsTyping(true);
+    const response = await chatWithAI(userMsg);
+    setMessages(prev => [...prev, { role: 'ai', text: response || 'Neural interface error. Try again. / စနစ်အတွင်း အမှားအယွင်းရှိနေပါသည်။' }]);
+    setIsTyping(false);
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto flex flex-col h-[calc(100vh-160px)] animate-fadeIn">
+      <div className="mb-8 space-y-1">
+        <h2 className="text-3xl font-black uppercase tracking-tight">Nova <span className="text-yellow-400">Assistant</span></h2>
+        <p className="text-[10px] font-black tracking-widest text-slate-500 uppercase flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Grounded Intelligence / အဆင့်မြင့် အချက်အလက်စနစ်
+        </p>
+      </div>
+      <div ref={scrollRef} className="flex-1 overflow-y-auto custom-scrollbar space-y-8 pr-4 mb-6 no-scrollbar">
+        {messages.map((m, i) => (
+          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`p-6 rounded-[32px] max-w-[85%] myanmar-font text-base font-medium leading-relaxed border border-white/5 transition-all ${
+              m.role === 'user' ? 'bg-yellow-400 text-slate-950 rounded-tr-none border-yellow-300 font-bold shadow-xl shadow-yellow-400/10' : 'glass-bright text-slate-200 rounded-tl-none border-white/10 bg-slate-900/40'
+            }`}>
+              {m.text}
+            </div>
+          </div>
+        ))}
+        {isTyping && (
+          <div className="flex justify-start">
+            <div className="glass-bright px-8 py-5 rounded-[32px] rounded-tl-none border border-white/10 flex items-center gap-4 bg-slate-900/40">
+              <div className="flex gap-1.5"><div className="w-2 h-2 bg-yellow-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div><div className="w-2 h-2 bg-yellow-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div><div className="w-2 h-2 bg-yellow-400 rounded-full animate-bounce"></div></div>
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="glass p-3 rounded-[32px] border border-white/10 flex gap-3 focus-within:border-yellow-400/30 transition-all shadow-2xl relative z-[60] bg-slate-900/60">
+        <input type="text" placeholder="Message Nova assistant..." className="flex-1 bg-transparent border-none outline-none px-4 text-sm font-bold myanmar-font text-slate-100 placeholder:text-slate-700" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendMessage()} />
+        <button onClick={sendMessage} disabled={isTyping} className="bg-yellow-400 text-slate-950 p-4 rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-lg shadow-yellow-400/20"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg></button>
+      </div>
+    </div>
+  );
+};
+
+export default App;
