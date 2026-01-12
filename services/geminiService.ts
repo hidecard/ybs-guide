@@ -29,8 +29,14 @@ export const getAIRouteSuggestion = async (from: string, to: string) => {
   - DO NOT USE markdown symbols like ** or ##. Use plain text only.`;
 
   try {
-    const response = await puter.ai.chat(context + "\n\n" + prompt, { model: 'gemini-3-flash-preview' });
-    return cleanText(response || "");
+    const response = await puter.ai.chat(context + "\n\n" + prompt, { model: 'gemini-3-flash-preview', stream: true });
+    let fullResponse = "";
+    for await (const part of response) {
+      if (part?.text) {
+        fullResponse += part.text;
+      }
+    }
+    return cleanText(fullResponse || "");
   } catch (error) {
     return "AI ဝန်ဆောင်မှု မရနိုင်သေးပါ။ / AI service is currently unavailable.";
   }
@@ -41,8 +47,14 @@ export const chatWithAI = async (message: string) => {
   const prompt = `Bus Context:\n${context}\n\nUser Question: ${message}\n\nInstructions: You are YBS Nova. Answer accurately. DO NOT use markdown characters like ** or ###. ALWAYS provide answers in BOTH Myanmar and English. Be proactive: if the weather is mentioned or detected as rainy, remind about umbrellas. Provide helpful YBS card top-up and balance check tips (USSD, App, G&G outlets) whenever relevant.`;
 
   try {
-    const response = await puter.ai.chat(prompt, { model: 'gemini-3-flash-preview' });
-    return cleanText(response || "");
+    const response = await puter.ai.chat(prompt, { model: 'gemini-3-flash-preview', stream: true });
+    let fullResponse = "";
+    for await (const part of response) {
+      if (part?.text) {
+        fullResponse += part.text;
+      }
+    }
+    return cleanText(fullResponse || "");
   } catch (error) {
     return "အမှားအယွင်းရှိနေပါသည်။ / System error.";
   }
@@ -51,8 +63,14 @@ export const chatWithAI = async (message: string) => {
 export const getDiscoveryInfo = async () => {
   const prompt = "Proactively check Yangon weather and provide a transit advisory. 1. Describe current weather and suggest an umbrella if rainy/cloudy. 2. Provide 3 proactive tips for YBS card users (top-up, balance check, tapping rule). Entire response MUST be in BOTH Myanmar and English. NO MARKDOWN SYMBOLS like ** or ##. Use plain text only.";
   try {
-    const response = await puter.ai.chat(prompt, { model: 'gemini-3-flash-preview' });
-    return cleanText(response || "");
+    const response = await puter.ai.chat(prompt, { model: 'gemini-3-flash-preview', stream: true });
+    let fullResponse = "";
+    for await (const part of response) {
+      if (part?.text) {
+        fullResponse += part.text;
+      }
+    }
+    return cleanText(fullResponse || "");
   } catch (error) {
     return "Discovery info unavailable. / အချက်အလက်များ မရနိုင်ပါ။";
   }
