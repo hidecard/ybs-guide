@@ -388,7 +388,21 @@ const AIAssistant: React.FC = () => {
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [puterAvailable, setPuterAvailable] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const checkPuter = () => {
+      if (typeof puter !== 'undefined' && puter.ai) {
+        setPuterAvailable(true);
+      } else {
+        setPuterAvailable(false);
+      }
+    };
+    checkPuter();
+    const interval = setInterval(checkPuter, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -412,6 +426,23 @@ const AIAssistant: React.FC = () => {
         <p className="text-[10px] font-black tracking-widest text-slate-500 uppercase flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Grounded Intelligence / အဆင့်မြင့် အချက်အလက်စနစ်
         </p>
+        {!puterAvailable && (
+          <div className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex flex-col gap-4">
+            <p className="text-sm text-red-400 font-bold">Puter.js not loaded. Please allow popups for this site. / Puter.js မရှိပါ။ ဤဆိုက်အတွက် popup များကို ခွင့်ပြုပါ။</p>
+            <button
+              onClick={() => {
+                if (typeof puter !== 'undefined' && puter.ui && puter.ui.showTerms) {
+                  puter.ui.showTerms();
+                } else {
+                  puter.ai.chat("Hello", { model: 'gemini-3-flash-preview' });
+                }
+              }}
+              className="bg-yellow-400 text-slate-950 px-4 py-2 rounded-xl font-bold text-sm"
+            >
+              Enable AI / AI ဖွင့်ရန်
+            </button>
+          </div>
+        )}
       </div>
       <div ref={scrollRef} className="flex-1 overflow-y-auto custom-scrollbar space-y-8 pr-4 mb-6 no-scrollbar">
         {messages.map((m, i) => (

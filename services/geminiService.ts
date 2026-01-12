@@ -1,4 +1,3 @@
-
 import { YBS_ROUTES } from "../data/busData";
 
 declare const puter: any;
@@ -24,10 +23,6 @@ ${YBS_ROUTES.map(r => `Bus ${r.id}: ${r.stops.join(" - ")}`).join("\n")}`;
 };
 
 export const getAIRouteSuggestion = async (from: string, to: string) => {
-  if (typeof puter === 'undefined' || !puter.ai) {
-    return "Puter.js is not loaded. Please refresh the page. / Puter.js မရှိပါ။ စာမျက်နှာကို ပြန်လည်ဖွင့်ပါ။";
-  }
-
   const context = getBusDataContext();
   const prompt = `User wants to go from "${from}" to "${to}". Suggest the best bus number(s).
   - ALWAYS provide the answer in BOTH Myanmar language and English.
@@ -42,10 +37,6 @@ export const getAIRouteSuggestion = async (from: string, to: string) => {
 };
 
 export const chatWithAI = async (message: string) => {
-  if (typeof puter === 'undefined' || !puter.ai) {
-    return "Puter.js is not loaded. Please refresh the page. / Puter.js မရှိပါ။ စာမျက်နှာကို ပြန်လည်ဖွင့်ပါ။";
-  }
-
   const context = getBusDataContext();
   const prompt = `Bus Context:\n${context}\n\nUser Question: ${message}\n\nInstructions: You are YBS Nova. Answer accurately. DO NOT use markdown characters like ** or ###. ALWAYS provide answers in BOTH Myanmar and English. Be proactive: if the weather is mentioned or detected as rainy, remind about umbrellas. Provide helpful YBS card top-up and balance check tips (USSD, App, G&G outlets) whenever relevant.`;
 
@@ -66,3 +57,4 @@ export const getDiscoveryInfo = async () => {
     return "Discovery info unavailable. / အချက်အလက်များ မရနိုင်ပါ။";
   }
 };
+
