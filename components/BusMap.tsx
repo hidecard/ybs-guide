@@ -76,15 +76,33 @@ const BusMap: React.FC<{ stops: string[]; busId?: string; stopIds?: number[]; li
   useEffect(() => {
     if (!busId) return;
     let mounted = true;
-    fetch(`/data/routes/route${busId}.json`)
-      .then(r => r.json())
-      .then((j: any) => {
-        const coordsArr: any[] = j?.shape?.geometry?.coordinates || j?.geometry?.coordinates || [];
-        // route files appear to store [lng, lat] pairs; convert to [lat, lng]
-        const converted = coordsArr.map((p: any[]) => [parseFloat(p[1]), parseFloat(p[0])]);
-        if (mounted) setShapeCoords(converted);
-      })
-      .catch(() => {});
+    // use routes index to find file variants (some routes have multiple files)
+    (async () => {
+      try {
+        const idxResp = await fetch('/data/routes-index.json');
+        if (!idxResp.ok) return;
+        const idx: Record<string, string[]> = await idxResp.json();
+        const key = String(busId);
+        const variants = idx[key] || idx[String(Number(key))] || [];
+        for (const fn of variants) {
+          try {
+            const r = await fetch(`/data/routes/${fn}`);
+            if (!r.ok) continue;
+            const j = await r.json();
+            const coordsArr: any[] = j?.shape?.geometry?.coordinates || j?.geometry?.coordinates || [];
+            if (!coordsArr || !coordsArr.length) continue;
+            const converted = coordsArr.map((p: any[]) => [parseFloat(p[1]), parseFloat(p[0])]);
+            if (mounted) { setShapeCoords(converted); }
+            break;
+          } catch (e) {
+            // try next variant
+            continue;
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    })();
     return () => { mounted = false; };
   }, [busId]);
 

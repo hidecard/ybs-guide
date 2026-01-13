@@ -137,6 +137,7 @@ const RouteDetailModal: React.FC<{ bus: BusRoute; onClose: () => void }> = ({ bu
 
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewMode>(ViewMode.EXPLORE);
+  const [mapSelectedRouteId, setMapSelectedRouteId] = useState<string | null>(null);
   const [savedTrips, setSavedTrips] = useState<{from: string, to: string}[]>(() => {
     const saved = localStorage.getItem('ybs_saved_trips');
     return saved ? JSON.parse(saved) : [];
@@ -146,6 +147,7 @@ const App: React.FC = () => {
     { id: ViewMode.EXPLORE, label: 'Explore', labelMm: 'လေ့လာရန်', icon: 'M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 002 2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
     { id: ViewMode.ROUTE_FINDER, label: 'Finder', labelMm: 'ရှာဖွေရန်', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
     { id: ViewMode.BUS_LIST, label: 'Lines', labelMm: 'လိုင်းများ', icon: 'M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z' },
+    // Map view removed
     { id: ViewMode.AI_ASSISTANT, label: 'Assistant', labelMm: 'အေအိုင်', icon: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z' },
   ];
 
@@ -155,11 +157,17 @@ const App: React.FC = () => {
     localStorage.setItem('ybs_saved_trips', JSON.stringify(newSaved));
   };
 
+  const showOnMap = (id: string) => {
+    setMapSelectedRouteId(String(id));
+    // Map page removed — show bus list instead
+    setActiveView(ViewMode.BUS_LIST);
+  };
+
   const renderContent = () => {
     switch (activeView) {
       case ViewMode.EXPLORE: return <ExploreDashboard savedTrips={savedTrips} onSelectSaved={(t) => { setActiveView(ViewMode.ROUTE_FINDER); }} />;
-      case ViewMode.BUS_LIST: return <BusList />;
-      case ViewMode.ROUTE_FINDER: return <RouteFinder onTripSearched={handleSaveTrip} />;
+      case ViewMode.BUS_LIST: return <BusList onShowOnMap={showOnMap} />;
+      case ViewMode.ROUTE_FINDER: return <RouteFinder onTripSearched={handleSaveTrip} onShowOnMap={showOnMap} />;
       case ViewMode.AI_ASSISTANT: return <AIAssistant />;
       default: return <ExploreDashboard savedTrips={savedTrips} onSelectSaved={() => {}} />;
     }
@@ -296,7 +304,7 @@ const ExploreDashboard: React.FC<{savedTrips: {from: string, to: string}[], onSe
   );
 };
 
-const RouteFinder: React.FC<{onTripSearched?: (trip: {from: string, to: string}) => void}> = ({onTripSearched}) => {
+const RouteFinder: React.FC<{onTripSearched?: (trip: {from: string, to: string}) => void; onShowOnMap?: (id: string) => void}> = ({onTripSearched, onShowOnMap}) => {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [results, setResults] = useState<BusRoute[]>([]);
@@ -372,13 +380,16 @@ const RouteFinder: React.FC<{onTripSearched?: (trip: {from: string, to: string})
                 {results.map(bus => (
                   <div key={bus.id} className="glass p-6 rounded-3xl group hover:border-yellow-400/40 transition-all flex items-center justify-between bg-white/5">
                     <div className="flex items-center gap-6">
-                      <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-white font-black text-3xl shadow-lg" style={{ backgroundColor: bus.color || '#3b82f6' }}>{bus.id}</div>
+                      <button onClick={() => onShowOnMap?.(bus.id)} className="w-16 h-16 rounded-2xl flex items-center justify-center text-white font-black text-3xl shadow-lg" style={{ backgroundColor: bus.color || '#3b82f6' }}>{bus.id}</button>
                       <div>
                         <h4 className="font-bold text-slate-100 uppercase">Bus {bus.id}</h4>
                         <p className="text-xs text-slate-500 myanmar-font mt-1 truncate max-w-[200px]">{bus.stops[0]} ⇄ {bus.stops[bus.stops.length-1]}</p>
                       </div>
                     </div>
-                    <button onClick={() => setSelectedBus(bus)} className="text-yellow-400 p-4 rounded-2xl bg-white/5 hover:bg-yellow-400 hover:text-slate-950 transition-all"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg></button>
+                    <div className="flex gap-2">
+                      <button onClick={() => setSelectedBus(bus)} className="text-yellow-400 p-4 rounded-2xl bg-white/5 hover:bg-yellow-400 hover:text-slate-950 transition-all"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg></button>
+                      <button onClick={() => onShowOnMap?.(bus.id)} className="p-3 bg-white/5 rounded-2xl text-slate-300 hover:text-yellow-400 transition-colors border border-white/5">Show on map</button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -394,7 +405,7 @@ const RouteFinder: React.FC<{onTripSearched?: (trip: {from: string, to: string})
   );
 };
 
-const BusList: React.FC = () => {
+const BusList: React.FC<{ onShowOnMap?: (id: string) => void }> = ({ onShowOnMap }) => {
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedBus, setSelectedBus] = useState<BusRoute | null>(null);
@@ -418,7 +429,7 @@ const BusList: React.FC = () => {
         {paginatedBuses.map(bus => (
           <div key={bus.id} className="glass p-6 rounded-[32px] group hover:border-yellow-400/40 transition-all flex flex-col gap-6 bg-white/5 border border-white/5">
             <div className="flex justify-between items-start">
-               <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-black text-2xl border border-white/10 shadow-lg" style={{ backgroundColor: bus.color || '#3b82f6' }}>{bus.id}</div>
+               <button onClick={() => onShowOnMap?.(bus.id)} className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-black text-2xl border border-white/10 shadow-lg" style={{ backgroundColor: bus.color || '#3b82f6' }}>{bus.id}</button>
                <span className="px-3 py-1 bg-white/5 rounded-lg text-[8px] font-black uppercase text-slate-500 border border-white/10">{bus.operator || 'YBS'}</span>
             </div>
             <div className="space-y-3">
@@ -452,7 +463,8 @@ const AIAssistant: React.FC = () => {
 
   useEffect(() => {
     const checkPuter = () => {
-      if (typeof puter !== 'undefined' && puter.ai) {
+      const p = (window as any).puter;
+      if (typeof p !== 'undefined' && p?.ai) {
         setPuterAvailable(true);
       } else {
         setPuterAvailable(false);
@@ -490,10 +502,11 @@ const AIAssistant: React.FC = () => {
             <p className="text-sm text-red-400 font-bold">Puter.js not loaded. Please allow popups for this site. / Puter.js မရှိပါ။ ဤဆိုက်အတွက် popup များကို ခွင့်ပြုပါ။</p>
             <button
               onClick={() => {
-                if (typeof puter !== 'undefined' && puter.ui && puter.ui.showTerms) {
-                  puter.ui.showTerms();
-                } else {
-                  puter.ai.chat("Hello", { model: 'gemini-3-flash-preview' });
+                const p = (window as any).puter;
+                if (typeof p !== 'undefined' && p?.ui && p.ui.showTerms) {
+                  p.ui.showTerms();
+                } else if (p?.ai) {
+                  p.ai.chat("Hello", { model: 'gemini-3-flash-preview' });
                 }
               }}
               className="bg-yellow-400 text-slate-950 px-4 py-2 rounded-xl font-bold text-sm"
