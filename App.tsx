@@ -3,6 +3,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { ViewMode, BusRoute } from './types';
 import { YBS_ROUTES } from './data/busData';
 import { getAIRouteSuggestion, chatWithAI, getDiscoveryInfo, cleanText } from './services/geminiService';
+import BusMap from './components/BusMap';
 
 const ITEMS_PER_PAGE = 12;
 
@@ -33,48 +34,96 @@ const NavItem: React.FC<{
   </button>
 );
 
-const RouteDetailModal: React.FC<{ bus: BusRoute; onClose: () => void }> = ({ bus, onClose }) => (
-  <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6 animate-fadeIn">
-    <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-xl" onClick={onClose}></div>
-    <div className="relative w-full max-w-2xl max-h-[90vh] glass rounded-[40px] border border-white/20 shadow-2xl flex flex-col overflow-hidden">
-      <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-black text-2xl shadow-xl border border-white/10" style={{ backgroundColor: bus.color || '#3b82f6' }}>
-            {bus.id}
-          </div>
-          <div>
-            <h3 className="font-black text-white uppercase tracking-tight italic text-xl">LINE {bus.id} | လိုင်း {bus.id}</h3>
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">{bus.operator || 'Yangon Bus Service'}</p>
-          </div>
-        </div>
-        <button onClick={onClose} className="p-3 bg-white/5 rounded-2xl text-slate-400 hover:bg-white/10 transition-colors border border-white/10">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
-        </button>
-      </div>
-      <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-6">
-        <div className="relative">
-          <div className="absolute left-[15px] top-2 bottom-2 w-0.5 bg-gradient-to-b from-yellow-400 via-slate-700 to-yellow-400 opacity-30"></div>
-          {bus.stops.map((stop, idx) => (
-            <div key={idx} className="flex items-start gap-6 mb-6 group">
-              <div className={`relative z-10 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
-                idx === 0 || idx === bus.stops.length - 1 ? 'border-yellow-400 bg-yellow-400/20' : 'border-slate-700 bg-slate-900'
-              }`}>
-                <div className={`w-2.5 h-2.5 rounded-full ${idx === 0 || idx === bus.stops.length - 1 ? 'bg-yellow-400 glow-yellow' : 'bg-slate-500'}`}></div>
-              </div>
-              <div className="flex-1 pt-0.5">
-                <span className={`myanmar-font text-base font-bold transition-colors ${
-                  idx === 0 || idx === bus.stops.length - 1 ? 'text-yellow-400' : 'text-slate-300'
-                }`}>
-                  {stop}
-                </span>
-              </div>
+const RouteDetailModal: React.FC<{ bus: BusRoute; onClose: () => void }> = ({ bus, onClose }) => {
+  const [routeStops, setRouteStops] = useState<string[] | null>(null);
+  const [routeStopIds, setRouteStopIds] = useState<number[] | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    // Try to load route JSON to get ordered stop IDs and prefer that
+    fetch(`/data/routes/route${bus.id}.json`).then(r => r.json()).then((j: any) => {
+      if (!mounted) return;
+      const ids = Array.isArray(j?.stops) ? j.stops.map((s: any) => Number(s)).filter(n => !isNaN(n)) : null;
+      setRouteStopIds(ids || null);
+      // if we have ids, load stops.tsv to map ids to display names
+      if (ids && ids.length) {
+        fetch('/data/stops.tsv').then(r => r.text()).then(text => {
+          const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+          if (!lines.length) return;
+          const headers = lines[0].split('\t').map(h => h.trim());
+          const rows = lines.slice(1).map(line => {
+            const cols = line.split('\t');
+            const obj: any = {};
+            headers.forEach((h, i) => { obj[h] = cols[i]; });
+            return obj;
+          });
+          const byId = new Map(rows.map((r: any) => [String(r.id), r]));
+          const mapped = ids.map((id: number) => {
+            const r = byId.get(String(id));
+            return r ? (r.name_mm || r.name_en || String(id)) : String(id);
+          });
+          setRouteStops(mapped);
+        }).catch(() => {
+          setRouteStops(null);
+        });
+      } else {
+        setRouteStops(null);
+      }
+    }).catch(() => {
+      setRouteStops(null);
+      setRouteStopIds(null);
+    });
+    return () => { mounted = false; };
+  }, [bus.id]);
+
+  const displayStops = routeStops || bus.stops;
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6 animate-fadeIn">
+      <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-xl" onClick={onClose}></div>
+      <div className="relative w-full max-w-2xl max-h-[90vh] glass rounded-[40px] border border-white/20 shadow-2xl flex flex-col overflow-hidden">
+        <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-black text-2xl shadow-xl border border-white/10" style={{ backgroundColor: bus.color || '#3b82f6' }}>
+              {bus.id}
             </div>
-          ))}
+            <div>
+              <h3 className="font-black text-white uppercase tracking-tight italic text-xl">LINE {bus.id} | လိုင်း {bus.id}</h3>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">{bus.operator || 'Yangon Bus Service'}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-3 bg-white/5 rounded-2xl text-slate-400 hover:bg-white/10 transition-colors border border-white/10">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-6">
+          <div className="mb-6">
+            <BusMap stops={displayStops} busId={bus.id} stopIds={routeStopIds || undefined} />
+          </div>
+          <div className="relative">
+            <div className="absolute left-[15px] top-2 bottom-2 w-0.5 bg-gradient-to-b from-yellow-400 via-slate-700 to-yellow-400 opacity-30"></div>
+            {displayStops.map((stop, idx) => (
+              <div key={idx} className="flex items-start gap-6 mb-6 group">
+                <div className={`relative z-10 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
+                  idx === 0 || idx === displayStops.length - 1 ? 'border-yellow-400 bg-yellow-400/20' : 'border-slate-700 bg-slate-900'
+                }`}>
+                  <div className={`w-2.5 h-2.5 rounded-full ${idx === 0 || idx === displayStops.length - 1 ? 'bg-yellow-400 glow-yellow' : 'bg-slate-500'}`}></div>
+                </div>
+                <div className="flex-1 pt-0.5">
+                  <span className={`myanmar-font text-base font-bold transition-colors ${
+                    idx === 0 || idx === displayStops.length - 1 ? 'text-yellow-400' : 'text-slate-300'
+                  }`}>
+                    {stop}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewMode>(ViewMode.EXPLORE);
