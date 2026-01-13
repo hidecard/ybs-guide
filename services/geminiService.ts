@@ -64,7 +64,7 @@ export const getAIRouteSuggestion = async (from: string, to: string) => {
 export const chatWithAI = async (message: string) => {
   const context = getBusDataContext();
   const weather = await getWeatherData();
-  const prompt = `Bus Context:\n${context}\n\nCurrent Weather: ${weather}\n\nUser Question: ${message}\n\nInstructions: You are YBS Ai. Answer accurately. DO NOT use markdown characters like ** or ###. ALWAYS provide answers in BOTH Myanmar and English. Be proactive: if the weather is rainy, remind about umbrellas. Provide helpful YBS card top-up and balance check tips (USSD, App, G&G outlets) whenever relevant.`;
+  const prompt = `Bus Context:\n${context}\n\nCurrent Weather: ${weather}\n\nUser Question: ${message}\n\nInstructions: You are YBS Ai. Answer accurately. DO NOT use markdown characters like ** or ###. ALWAYS provide answers in BOTH Myanmar and English. Be proactive: if the weather is rainy, remind about umbrellas. Provide helpful YBS card top-up and balance check tips (App, G&G outlets) whenever relevant.`;
 
   try {
     const response = await puter.ai.chat(prompt, { model: 'gemini-3-flash-preview', stream: true });
