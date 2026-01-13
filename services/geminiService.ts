@@ -82,7 +82,15 @@ export const chatWithAI = async (message: string) => {
 
 export const getDiscoveryInfo = async () => {
   const weather = await getWeatherData();
-  const prompt = `Based on this weather data: "${weather}". Provide a transit advisory. 1. Describe current weather and suggest an umbrella if rainy/cloudy. 2. Provide 3 proactive tips for YBS card users (top-up, balance check, tapping rule). Entire response MUST be in BOTH Myanmar and English. NO MARKDOWN SYMBOLS like ** or ##. Use plain text only.`;
+  const prompt = `Based on this weather data: "${weather}". Provide a transit advisory.
+
+1. Describe the current weather and suggest carrying an umbrella if it is rainy or cloudy.
+2. Warn passengers to be careful of pickpockets and thieves on the bus, especially during crowded times.
+3. Remind passengers that they may fall asleep on the bus and give advice on how not to miss their bus stop.
+4. Provide 3 proactive tips for YBS card users, including topping up in advance, checking balance regularly, and following the correct tapping rule.
+   Entire response MUST be written in BOTH Myanmar and English.
+   NO MARKDOWN symbols like ** or ##.
+   Use plain text only.`;
   try {
     const response = await puter.ai.chat(prompt, { model: 'gemini-3-flash-preview', stream: true });
     let fullResponse = "";
