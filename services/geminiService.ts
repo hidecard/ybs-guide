@@ -88,6 +88,7 @@ export const getDiscoveryInfo = async () => {
 2. Warn passengers to be careful of pickpockets and thieves on the bus, especially during crowded times.
 3. Remind passengers that they may fall asleep on the bus and give advice on how not to miss their bus stop.
 4. Provide 3 proactive tips for YBS card users, including topping up in advance, checking balance regularly, and following the correct tapping rule.
+5. 3. Add a romantic or surprise idea for users.
    Entire response MUST be written in BOTH Myanmar and English.
    NO MARKDOWN symbols like ** or ##.
    Use plain text only.`;
