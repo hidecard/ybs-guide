@@ -37,6 +37,7 @@ const NavItem: React.FC<{
 const RouteDetailModal: React.FC<{ bus: BusRoute; onClose: () => void }> = ({ bus, onClose }) => {
   const [routeStops, setRouteStops] = useState<string[] | null>(null);
   const [routeStopIds, setRouteStopIds] = useState<number[] | null>(null);
+  const [liveEnabled, setLiveEnabled] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -98,7 +99,16 @@ const RouteDetailModal: React.FC<{ bus: BusRoute; onClose: () => void }> = ({ bu
         </div>
         <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-6">
           <div className="mb-6">
-            <BusMap stops={displayStops} busId={bus.id} stopIds={routeStopIds || undefined} />
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-sm font-bold text-slate-300">Map</div>
+              <div className="flex items-center gap-3">
+                <label className="text-xs text-slate-400">Live</label>
+                <button onClick={() => setLiveEnabled(prev => !prev)} className={`px-3 py-1 rounded-full text-sm font-bold ${liveEnabled ? 'bg-yellow-400 text-slate-900' : 'bg-white/5 text-slate-300'}`}>
+                  {liveEnabled ? 'On' : 'Off'}
+                </button>
+              </div>
+            </div>
+            <BusMap stops={displayStops} busId={bus.id} stopIds={routeStopIds || undefined} live={liveEnabled} />
           </div>
           <div className="relative">
             <div className="absolute left-[15px] top-2 bottom-2 w-0.5 bg-gradient-to-b from-yellow-400 via-slate-700 to-yellow-400 opacity-30"></div>
