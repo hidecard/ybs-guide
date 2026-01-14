@@ -137,9 +137,9 @@ const RouteDetailModal: React.FC<{ bus: BusRoute; onClose: () => void; onRouteCh
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8 space-y-6">
-          {/* Map Section - Priority on Mobile */}
-          <div className="mb-6 sticky top-0 z-10 bg-slate-950/95 backdrop-blur-xl rounded-3xl p-4 -mx-4 border-b border-white/10">
+        {/* Fixed Map Section */}
+        <div className="flex-shrink-0 bg-slate-950/95 backdrop-blur-xl border-b border-white/10">
+          <div className="p-4 md:p-8">
             <div className="flex items-center justify-between mb-4">
               <div className="text-sm font-bold text-slate-300">Map / မြေပုံ</div>
               <div className="flex items-center gap-3">
@@ -151,8 +151,12 @@ const RouteDetailModal: React.FC<{ bus: BusRoute; onClose: () => void; onRouteCh
             </div>
             <BusMap stops={displayStops} busId={bus.id} stopIds={routeStopIds || undefined} live={liveEnabled} />
           </div>
+        </div>
 
-          {/* Route Stops Timeline */}
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          <div className="p-4 md:p-8 space-y-6">
+            {/* Route Stops Timeline */}
           <div className="relative">
             <div className="flex items-center justify-between mb-4">
               <div className="text-sm font-bold text-slate-300">Route Stops / ရပ်နားများ</div>
@@ -177,6 +181,7 @@ const RouteDetailModal: React.FC<{ bus: BusRoute; onClose: () => void; onRouteCh
                 </div>
               ))}
             </div>
+          </div>
           </div>
         </div>
       </div>
