@@ -34,7 +34,7 @@ const NavItem: React.FC<{
   </button>
 );
 
-const RouteDetailModal: React.FC<{ bus: BusRoute; onClose: () => void }> = ({ bus, onClose }) => {
+const RouteDetailModal: React.FC<{ bus: BusRoute; onClose: () => void; onRouteChange?: (bus: BusRoute) => void }> = ({ bus, onClose, onRouteChange }) => {
   const [routeStops, setRouteStops] = useState<string[] | null>(null);
   const [routeStopIds, setRouteStopIds] = useState<number[] | null>(null);
   const [liveEnabled, setLiveEnabled] = useState(false);
@@ -80,54 +80,103 @@ const RouteDetailModal: React.FC<{ bus: BusRoute; onClose: () => void }> = ({ bu
   const displayStops = routeStops || bus.stops;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6 animate-fadeIn">
+    <div className="fixed inset-0 z-[200] flex items-end md:items-center justify-center p-0 md:p-4 animate-fadeIn">
       <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-xl" onClick={onClose}></div>
-      <div className="relative w-full max-w-2xl max-h-[90vh] glass rounded-[40px] border border-white/20 shadow-2xl flex flex-col overflow-hidden">
-        <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-black text-2xl shadow-xl border border-white/10" style={{ backgroundColor: bus.color || '#3b82f6' }}>
+      <div className="relative w-full md:max-w-2xl h-full md:h-auto md:max-h-[90vh] glass md:rounded-[40px] border-t md:border border-white/20 shadow-2xl flex flex-col overflow-hidden">
+        {/* Mobile Header with Drag Handle */}
+        <div className="md:hidden flex justify-center pt-4 pb-2">
+          <div className="w-12 h-1.5 bg-white/30 rounded-full"></div>
+        </div>
+
+        <div className="p-4 md:p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center text-white font-black text-xl md:text-2xl shadow-xl border border-white/10" style={{ backgroundColor: bus.color || '#3b82f6' }}>
               {bus.id}
             </div>
             <div>
-              <h3 className="font-black text-white uppercase tracking-tight italic text-xl">LINE {bus.id} | လိုင်း {bus.id}</h3>
+              <h3 className="font-black text-white uppercase tracking-tight italic text-lg md:text-xl">LINE {bus.id} | လိုင်း {bus.id}</h3>
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">{bus.operator || 'Yangon Bus Service'}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-3 bg-white/5 rounded-2xl text-slate-400 hover:bg-white/10 transition-colors border border-white/10">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Route Switcher */}
+            {onRouteChange && (
+              <div className="flex items-center gap-1 mr-2">
+                <button
+                  onClick={() => {
+                    const currentIndex = YBS_ROUTES.findIndex(r => r.id === bus.id);
+                    const prevIndex = currentIndex > 0 ? currentIndex - 1 : YBS_ROUTES.length - 1;
+                    onRouteChange(YBS_ROUTES[prevIndex]);
+                  }}
+                  className="p-2 bg-white/5 rounded-xl text-slate-400 hover:text-yellow-400 transition-colors border border-white/10 active:scale-95"
+                  title="Previous Route"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <span className="text-xs text-slate-500 px-2">{YBS_ROUTES.findIndex(r => r.id === bus.id) + 1} / {YBS_ROUTES.length}</span>
+                <button
+                  onClick={() => {
+                    const currentIndex = YBS_ROUTES.findIndex(r => r.id === bus.id);
+                    const nextIndex = currentIndex < YBS_ROUTES.length - 1 ? currentIndex + 1 : 0;
+                    onRouteChange(YBS_ROUTES[nextIndex]);
+                  }}
+                  className="p-2 bg-white/5 rounded-xl text-slate-400 hover:text-yellow-400 transition-colors border border-white/10 active:scale-95"
+                  title="Next Route"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            )}
+            <button onClick={onClose} className="p-3 bg-white/5 rounded-2xl text-slate-400 hover:bg-white/10 transition-colors border border-white/10 active:scale-95">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-6">
+
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8 space-y-6">
+          {/* Map Section - Priority on Mobile */}
           <div className="mb-6">
             <div className="flex items-center justify-between mb-4">
-              <div className="text-sm font-bold text-slate-300">Map</div>
+              <div className="text-sm font-bold text-slate-300">Map / မြေပုံ</div>
               <div className="flex items-center gap-3">
                 <label className="text-xs text-slate-400">Live</label>
-                <button onClick={() => setLiveEnabled(prev => !prev)} className={`px-3 py-1 rounded-full text-sm font-bold ${liveEnabled ? 'bg-yellow-400 text-slate-900' : 'bg-white/5 text-slate-300'}`}>
+                <button onClick={() => setLiveEnabled(prev => !prev)} className={`px-4 py-2 rounded-full text-sm font-bold transition-all active:scale-95 ${liveEnabled ? 'bg-yellow-400 text-slate-900 shadow-lg' : 'bg-white/5 text-slate-300 border border-white/10'}`}>
                   {liveEnabled ? 'On' : 'Off'}
                 </button>
               </div>
             </div>
             <BusMap stops={displayStops} busId={bus.id} stopIds={routeStopIds || undefined} live={liveEnabled} />
           </div>
+
+          {/* Route Stops Timeline */}
           <div className="relative">
-            <div className="absolute left-[15px] top-2 bottom-2 w-0.5 bg-gradient-to-b from-yellow-400 via-slate-700 to-yellow-400 opacity-30"></div>
-            {displayStops.map((stop, idx) => (
-              <div key={idx} className="flex items-start gap-6 mb-6 group">
-                <div className={`relative z-10 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
-                  idx === 0 || idx === displayStops.length - 1 ? 'border-yellow-400 bg-yellow-400/20' : 'border-slate-700 bg-slate-900'
-                }`}>
-                  <div className={`w-2.5 h-2.5 rounded-full ${idx === 0 || idx === displayStops.length - 1 ? 'bg-yellow-400 glow-yellow' : 'bg-slate-500'}`}></div>
-                </div>
-                <div className="flex-1 pt-0.5">
-                  <span className={`myanmar-font text-base font-bold transition-colors ${
-                    idx === 0 || idx === displayStops.length - 1 ? 'text-yellow-400' : 'text-slate-300'
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-sm font-bold text-slate-300">Route Stops / ရပ်နားများ</div>
+              <div className="text-xs text-slate-500">{displayStops.length} stops</div>
+            </div>
+            <div className="absolute left-[15px] top-12 bottom-2 w-0.5 bg-gradient-to-b from-yellow-400 via-slate-700 to-yellow-400 opacity-30"></div>
+            <div className="space-y-4 md:space-y-6">
+              {displayStops.map((stop, idx) => (
+                <div key={idx} className="flex items-start gap-4 md:gap-6 group">
+                  <div className={`relative z-10 w-8 h-8 md:w-8 md:h-8 rounded-full border-2 flex items-center justify-center transition-all ${
+                    idx === 0 || idx === displayStops.length - 1 ? 'border-yellow-400 bg-yellow-400/20' : 'border-slate-700 bg-slate-900'
                   }`}>
-                    {stop}
-                  </span>
+                    <div className={`w-2.5 h-2.5 rounded-full ${idx === 0 || idx === displayStops.length - 1 ? 'bg-yellow-400 glow-yellow' : 'bg-slate-500'}`}></div>
+                  </div>
+                  <div className="flex-1 pt-0.5 min-h-[44px] flex items-center">
+                    <span className={`myanmar-font text-base md:text-base font-bold transition-colors ${
+                      idx === 0 || idx === displayStops.length - 1 ? 'text-yellow-400' : 'text-slate-300'
+                    }`}>
+                      {stop}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -281,7 +330,8 @@ const ExploreDashboard: React.FC<{savedTrips: {from: string, to: string}[], onSe
           lat: parseFloat(s.lat || s.lat || 0),
           lng: parseFloat(s.lng || s.lng || 0),
           name_en: s.name_en || '',
-          name_mm: s.name_mm || ''
+          name_mm: s.name_mm || '',
+          distance: 0
         })).filter(s => !isNaN(s.lat) && !isNaN(s.lng));
         mapped.forEach(m => {
           m.distance = haversineKm(latitude, longitude, m.lat, m.lng);
@@ -438,7 +488,7 @@ const RouteFinder: React.FC<{onTripSearched?: (trip: {from: string, to: string})
     setLoading(true);
     setAiResult(null);
     onTripSearched?.({from, to});
-    
+
     const f = from.toLowerCase().trim();
     const t = to.toLowerCase().trim();
     const direct = YBS_ROUTES.filter(route => {
@@ -447,15 +497,19 @@ const RouteFinder: React.FC<{onTripSearched?: (trip: {from: string, to: string})
       return fromIndex !== -1 && toIndex !== -1 && fromIndex < toIndex;
     });
     setResults(direct);
-    
+
     const aiSuggestion = await getAIRouteSuggestion(from, to);
     setAiResult(aiSuggestion);
     setLoading(false);
   };
 
+  const handleRouteChange = (newBus: BusRoute) => {
+    setSelectedBus(newBus);
+  };
+
   return (
     <div className="space-y-12 animate-fadeIn">
-      {selectedBus && <RouteDetailModal bus={selectedBus} onClose={() => setSelectedBus(null)} />}
+      {selectedBus && <RouteDetailModal bus={selectedBus} onClose={() => setSelectedBus(null)} onRouteChange={handleRouteChange} />}
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-10">
         <div className="xl:col-span-2 space-y-8">
           <div className="space-y-2">
@@ -535,7 +589,7 @@ const BusList: React.FC<{ onShowOnMap?: (id: string) => void }> = ({ onShowOnMap
 
   return (
     <div className="space-y-10 animate-fadeIn">
-      {selectedBus && <RouteDetailModal bus={selectedBus} onClose={() => setSelectedBus(null)} />}
+      {selectedBus && <RouteDetailModal bus={selectedBus} onClose={() => setSelectedBus(null)} onRouteChange={(newBus) => setSelectedBus(newBus)} />}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="space-y-2">
           <h2 className="text-4xl font-black tracking-tight uppercase leading-none">System <span className="text-yellow-400">Inventory</span></h2>

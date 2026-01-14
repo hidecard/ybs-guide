@@ -441,41 +441,75 @@ const BusMap: React.FC<{
   return (
     <div className="w-full rounded-2xl overflow-hidden border border-white/10 relative">
 
-      {/* Nearest Stop Info */}
+      {/* Mobile Bottom Sheet for Nearest Stops */}
       {showNearest && nearestStops.length > 0 && (
-        <div className="absolute bottom-4 left-4 z-[1000] glass p-4 rounded-2xl max-w-[280px]">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-            <span className="text-xs font-bold text-slate-300">Nearest Stops / အနီးဆုံး မှတ်တိုင်များ</span>
-          </div>
-          <div className="space-y-2 max-h-[150px] overflow-y-auto">
-            {nearestStops.slice(0, 5).map((stop, idx) => (
-              <button
-                key={idx}
-                onClick={() => onNearestStopSelect?.(stop)}
-                className="w-full text-left p-2 rounded-lg hover:bg-white/10 transition-colors"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-slate-200 myanmar-font truncate">{stop.name_mm || stop.name_en}</span>
-                  <span className="text-xs text-yellow-400">{Math.round(stop.distance)}m</span>
+        <>
+          {/* Mobile Bottom Sheet */}
+          <div className="md:hidden absolute bottom-0 left-0 right-0 z-[1000] glass border-t border-white/10 rounded-t-3xl max-h-[60vh] overflow-hidden">
+            <div className="p-4 border-b border-white/10">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                  <span className="text-sm font-bold text-slate-300">Nearest Stops / အနီးဆုံး မှတ်တိုင်များ</span>
                 </div>
-                {stop.id && <span className="text-[10px] text-slate-500">#{stop.id}</span>}
-              </button>
-            ))}
+                <div className="w-8 h-1 bg-white/20 rounded-full"></div>
+              </div>
+            </div>
+            <div className="p-4 space-y-3 max-h-[calc(60vh-80px)] overflow-y-auto">
+              {nearestStops.slice(0, 5).map((stop, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => onNearestStopSelect?.(stop)}
+                  className="w-full text-left p-4 rounded-xl hover:bg-white/10 transition-colors active:scale-95 border border-white/5"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-base font-bold text-slate-200 myanmar-font truncate">{stop.name_mm || stop.name_en}</span>
+                    <span className="text-sm text-yellow-400 font-bold">{Math.round(stop.distance)}m</span>
+                  </div>
+                  {stop.id && <span className="text-xs text-slate-500">Stop #{stop.id}</span>}
+                </button>
+              ))}
+              {userError && (
+                <div className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400">{userError}</div>
+              )}
+            </div>
           </div>
-          {userError && (
-            <div className="mt-2 text-xs text-red-400">{userError}</div>
-          )}
-        </div>
+
+          {/* Desktop Overlay */}
+          <div className="hidden md:block absolute bottom-4 left-4 z-[1000] glass p-4 rounded-2xl max-w-[280px]">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+              <span className="text-xs font-bold text-slate-300">Nearest Stops / အနီးဆုံး မှတ်တိုင်များ</span>
+            </div>
+            <div className="space-y-2 max-h-[150px] overflow-y-auto">
+              {nearestStops.slice(0, 5).map((stop, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => onNearestStopSelect?.(stop)}
+                  className="w-full text-left p-2 rounded-lg hover:bg-white/10 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-slate-200 myanmar-font truncate">{stop.name_mm || stop.name_en}</span>
+                    <span className="text-xs text-yellow-400">{Math.round(stop.distance)}m</span>
+                  </div>
+                  {stop.id && <span className="text-[10px] text-slate-500">#{stop.id}</span>}
+                </button>
+              ))}
+            </div>
+            {userError && (
+              <div className="mt-2 text-xs text-red-400">{userError}</div>
+            )}
+          </div>
+        </>
       )}
 
       {/* Legend removed */}
 
-      <MapContainer 
-        center={center} 
-        zoom={mapZoom} 
-        scrollWheelZoom 
-        style={{ height: 320, width: '100%' }}
+      <MapContainer
+        center={center}
+        zoom={mapZoom}
+        scrollWheelZoom
+        style={{ height: window.innerWidth < 768 ? '60vh' : '320px', width: '100%' }}
         onZoomEnd={(e) => setMapZoom((e.target as any)._zoom)}
       >
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
