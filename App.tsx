@@ -80,9 +80,9 @@ const RouteDetailModal: React.FC<{ bus: BusRoute; onClose: () => void; onRouteCh
   const displayStops = routeStops || bus.stops;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-end md:items-center justify-center p-0 md:p-4 animate-fadeIn">
+    <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
       <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-xl" onClick={onClose}></div>
-      <div className="relative w-full md:max-w-2xl h-full md:h-auto md:max-h-[90vh] glass md:rounded-[40px] border-t md:border border-white/20 shadow-2xl flex flex-col overflow-hidden">
+      <div className="relative w-full sm:max-w-lg md:max-w-2xl lg:max-w-4xl xl:max-w-5xl h-full sm:h-auto sm:max-h-[95vh] glass sm:rounded-[40px] border-t sm:border border-white/20 shadow-2xl flex flex-col overflow-hidden">
         {/* Mobile Header with Drag Handle */}
         <div className="md:hidden flex justify-center pt-4 pb-2">
           <div className="w-12 h-1.5 bg-white/30 rounded-full"></div>
@@ -139,17 +139,19 @@ const RouteDetailModal: React.FC<{ bus: BusRoute; onClose: () => void; onRouteCh
 
         {/* Fixed Map Section */}
         <div className="flex-shrink-0 bg-slate-950/95 backdrop-blur-xl border-b border-white/10">
-          <div className="p-4 md:p-8">
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-sm font-bold text-slate-300">Map / မြေပုံ</div>
-              <div className="flex items-center gap-3">
-                <label className="text-xs text-slate-400">Live</label>
-                <button onClick={() => setLiveEnabled(prev => !prev)} className={`px-4 py-2 rounded-full text-sm font-bold transition-all active:scale-95 ${liveEnabled ? 'bg-yellow-400 text-slate-900 shadow-lg' : 'bg-white/5 text-slate-300 border border-white/10'}`}>
+          <div className="p-3 sm:p-4 md:p-6 lg:p-8">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="text-xs sm:text-sm font-bold text-slate-300">Map / မြေပုံ</div>
+              <div className="flex items-center gap-2 sm:gap-3">
+                <label className="text-[10px] sm:text-xs text-slate-400">Live</label>
+                <button onClick={() => setLiveEnabled(prev => !prev)} className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-all active:scale-95 ${liveEnabled ? 'bg-yellow-400 text-slate-900 shadow-lg' : 'bg-white/5 text-slate-300 border border-white/10'}`}>
                   {liveEnabled ? 'On' : 'Off'}
                 </button>
               </div>
             </div>
-            <BusMap stops={displayStops} busId={bus.id} stopIds={routeStopIds || undefined} live={liveEnabled} />
+            <div className="h-48 sm:h-56 md:h-64 lg:h-72 xl:h-80 rounded-xl overflow-hidden border border-white/10">
+              <BusMap stops={displayStops} busId={bus.id} stopIds={routeStopIds || undefined} live={liveEnabled} />
+            </div>
           </div>
         </div>
 
