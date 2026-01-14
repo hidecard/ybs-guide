@@ -254,6 +254,7 @@ const App: React.FC = () => {
     { id: ViewMode.EXPLORE, label: 'Explore', labelMm: 'လေ့လာရန်', icon: 'M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 002 2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
     { id: ViewMode.ROUTE_FINDER, label: 'Finder', labelMm: 'ရှာဖွေရန်', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
     { id: ViewMode.BUS_LIST, label: 'Lines', labelMm: 'လိုင်းများ', icon: 'M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z' },
+    { id: ViewMode.WHICH_BUS, label: 'Which Bus', labelMm: 'ဘယ်ဘတ်စ်ကား', icon: 'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
     // Map view removed
     { id: ViewMode.AI_ASSISTANT, label: 'Assistant', labelMm: 'အေအိုင်', icon: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z' },
     { id: ViewMode.FEEDBACK, label: 'Feedback', labelMm: 'အကြံပြုချက်', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z' },
@@ -277,6 +278,7 @@ const App: React.FC = () => {
       case ViewMode.BUS_LIST: return <BusList onShowOnMap={showOnMap} cachedRoutes={cachedRoutes} isOfflineMode={isOfflineMode} />;
       case ViewMode.ROUTE_FINDER: return <RouteFinder onTripSearched={handleSaveTrip} onShowOnMap={showOnMap} cachedRoutes={cachedRoutes} isOfflineMode={isOfflineMode} />;
       case ViewMode.AI_ASSISTANT: return <AIAssistant />;
+      case ViewMode.WHICH_BUS: return <WhichBus onShowOnMap={showOnMap} />;
       case ViewMode.FEEDBACK: return <Feedback />;
       default: return <ExploreDashboard savedTrips={savedTrips} onSelectSaved={() => {}} onShowOnMap={showOnMap} onUseStop={() => {}} cachedDiscovery={cachedDiscovery} isOfflineMode={isOfflineMode} />;
     }
@@ -807,6 +809,198 @@ const AIAssistant: React.FC = () => {
   );
 };
 
+const WhichBus: React.FC<{ onShowOnMap?: (id: string) => void }> = ({ onShowOnMap }) => {
+  const [selectedRoute, setSelectedRoute] = useState<string | null>(null);
+  const [lastTrip, setLastTrip] = useState<{from: string, to: string} | null>(null);
+  const [userLocation, setUserLocation] = useState<string | null>(null);
+  const [aiMessage, setAiMessage] = useState<string>('');
+  const [alternativeRoutes, setAlternativeRoutes] = useState<BusRoute[]>([]);
+
+  useEffect(() => {
+    // Load selected route from localStorage or default
+    const savedRoute = localStorage.getItem('ybs_selected_route');
+    if (savedRoute) {
+      setSelectedRoute(savedRoute);
+    }
+
+    // Load last searched trip
+    const savedTrip = localStorage.getItem('ybs_last_trip');
+    if (savedTrip) {
+      try {
+        setLastTrip(JSON.parse(savedTrip));
+      } catch (e) {}
+    }
+
+    // Get user location
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          // In a real app, you'd reverse geocode to get address
+          setUserLocation(`${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`);
+        },
+        () => {
+          setUserLocation('Location unavailable');
+        }
+      );
+    }
+
+    // Generate AI message based on selected route
+    if (savedRoute) {
+      const route = YBS_ROUTES.find(r => r.id === savedRoute);
+      if (route) {
+        setAiMessage(`သင် Bus ${route.id} ကို စီးနေပါတယ်။ နောက်ထပ်မှတ်တိုင်က ${route.stops[route.stops.length - 1]} ဖြစ်ပါတယ်။`);
+      }
+    }
+
+    // Find alternative routes (simplified - in real app would be more sophisticated)
+    if (savedTrip) {
+      const trip = JSON.parse(savedTrip);
+      const alternatives = YBS_ROUTES.filter(r =>
+        r.stops.some(s => s.toLowerCase().includes(trip.from.toLowerCase())) &&
+        r.stops.some(s => s.toLowerCase().includes(trip.to.toLowerCase())) &&
+        r.id !== savedRoute
+      ).slice(0, 3);
+      setAlternativeRoutes(alternatives);
+    }
+  }, []);
+
+  return (
+    <div className="space-y-12 animate-fadeIn">
+      <div className="space-y-2">
+        <h2 className="text-4xl font-black tracking-tight uppercase leading-none">Which <span className="text-yellow-400">Bus</span></h2>
+        <h3 className="myanmar-font text-2xl font-bold text-slate-300">ဘယ်ဘတ်စ်ကားကို စီးရမလဲ</h3>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Current Status */}
+        <div className="space-y-6">
+          {/* Selected Route */}
+          <div className="glass p-6 rounded-[32px] border border-white/10">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-0.5 w-8 bg-yellow-400"></div>
+              <span className="text-[10px] font-black tracking-widest uppercase text-yellow-400">သင်ရွေးထားတဲ့ Route</span>
+            </div>
+            {selectedRoute ? (
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => onShowOnMap?.(selectedRoute)}
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center text-white font-black text-2xl shadow-lg"
+                  style={{ backgroundColor: YBS_ROUTES.find(r => r.id === selectedRoute)?.color || '#3b82f6' }}
+                >
+                  {selectedRoute}
+                </button>
+                <div>
+                  <h4 className="font-bold text-white">Bus {selectedRoute}</h4>
+                  <p className="text-sm text-slate-400 myanmar-font">
+                    {YBS_ROUTES.find(r => r.id === selectedRoute)?.stops.slice(0, 3).join(' → ')}...
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-slate-400">No route selected</p>
+            )}
+          </div>
+
+          {/* Last Searched Trip */}
+          <div className="glass p-6 rounded-[32px] border border-white/10">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-0.5 w-8 bg-yellow-400"></div>
+              <span className="text-[10px] font-black tracking-widest uppercase text-yellow-400">နောက်ဆုံးရှာထားတဲ့ Trip</span>
+            </div>
+            {lastTrip ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
+                  <span className="myanmar-font font-bold text-white">{lastTrip.from}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 rounded-full border-2 border-yellow-400"></div>
+                  <span className="myanmar-font font-bold text-white">{lastTrip.to}</span>
+                </div>
+              </div>
+            ) : (
+              <p className="text-slate-400">No recent trips</p>
+            )}
+          </div>
+
+          {/* User Location */}
+          <div className="glass p-6 rounded-[32px] border border-white/10">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-0.5 w-8 bg-yellow-400"></div>
+              <span className="text-[10px] font-black tracking-widest uppercase text-yellow-400">သင့်တည်နေရာ</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-slate-600 rounded-xl flex items-center justify-center">
+                <svg className="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </div>
+              <span className="myanmar-font font-bold text-white">{userLocation || 'Detecting location...'}</span>
+            </div>
+          </div>
+
+          {/* AI Message */}
+          <div className="glass p-6 rounded-[32px] border border-white/10">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-0.5 w-8 bg-yellow-400"></div>
+              <span className="text-[10px] font-black tracking-widest uppercase text-yellow-400">AI ဥပမာ</span>
+            </div>
+            <div className="myanmar-font text-lg font-semibold text-slate-200 leading-relaxed">
+              {aiMessage || 'လမ်းကြောင်းအချက်အလက်များကို ရှာဖွေနေပါသည်...'}
+            </div>
+          </div>
+        </div>
+
+        {/* Alternative Routes */}
+        <div className="space-y-6">
+          <div className="glass p-6 rounded-[32px] border border-white/10">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="h-0.5 w-8 bg-yellow-400"></div>
+              <span className="text-[10px] font-black tracking-widest uppercase text-yellow-400">Alternative Routes</span>
+              <span className="text-[10px] font-black tracking-widest uppercase text-slate-500">လမ်းကြောင်း မတူညီသည့် options</span>
+            </div>
+
+            {alternativeRoutes.length > 0 ? (
+              <div className="space-y-4">
+                {alternativeRoutes.map((route, index) => (
+                  <div key={route.id} className="glass p-4 rounded-2xl border border-white/5 bg-white/5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <button
+                          onClick={() => onShowOnMap?.(route.id)}
+                          className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-lg"
+                          style={{ backgroundColor: route.color || '#3b82f6' }}
+                        >
+                          {route.id}
+                        </button>
+                        <div>
+                          <h4 className="font-bold text-white">Bus {route.id}</h4>
+                          <p className="text-xs text-slate-400 myanmar-font truncate max-w-[200px]">
+                            {route.stops[0]} → ... → {route.stops[route.stops.length - 1]}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs text-slate-500">Option {index + 1}</div>
+                        <div className="text-xs text-yellow-400 font-bold">{route.stops.length} stops</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-slate-400 myanmar-font">အခြားလမ်းကြောင်းများ မရှိပါ</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Feedback: React.FC = () => {
   const [username, setUsername] = useState('');
   const [title, setTitle] = useState('');
@@ -981,51 +1175,7 @@ const Feedback: React.FC = () => {
               </div>
               <div className="flex justify-between items-center py-2 border-b border-white/5">
                 <span className="text-sm text-slate-400">Role</span>
-                <span className="text-sm font-bold text-white">Project Manager | Instructor</span>
-              </div>
-              <div className="flex justify-between items-center py-2">
-                <span className="text-sm text-slate-400">Location</span>
-                <span className="text-sm font-bold text-white">Yangon, Myanmar</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Contact & Links */}
-        <div className="glass p-8 rounded-[40px] border border-white/10">
-          <h4 className="text-lg font-black uppercase tracking-tight mb-6 text-yellow-400">Get In Touch / ဆက်သွယ်ရန်</h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="text-center space-y-3">
-              <div className="w-12 h-12 bg-yellow-400 rounded-xl flex items-center justify-center mx-auto">
-                <svg className="w-6 h-6 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-sm font-bold text-white">Email</p>
-                <p className="text-xs text-slate-400">arkaryan.info@gmail.com</p>
-              </div>
-            </div>
-            <div className="text-center space-y-3">
-              <div className="w-12 h-12 bg-yellow-400 rounded-xl flex items-center justify-center mx-auto">
-                <svg className="w-6 h-6 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-sm font-bold text-white">Website</p>
-                <p className="text-xs text-slate-400">arkaryan.vercel.app</p>
-              </div>
-            </div>
-            <div className="text-center space-y-3">
-              <div className="w-12 h-12 bg-yellow-400 rounded-xl flex items-center justify-center mx-auto">
-                <svg className="w-6 h-6 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-sm font-bold text-white">Support</p>
-                <p className="text-xs text-slate-400">24/7 Available</p>
+                <span className="text-sm font-bold text-white">Developer</span>
               </div>
             </div>
           </div>
