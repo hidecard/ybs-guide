@@ -124,7 +124,7 @@ export const getDiscoveryInfo = async () => {
 
 Based on this weather data: "${weather}". Provide a transit advisory.
 
-1.please prepare accordingly for your trip. If it is sunny, remember to bring an extra shirt, a small towel, a hat, or sunglasses to stay comfortable in the heat. If it is rainy or cloudy, carrying an umbrella is highly recommended.
+1.please prepare accordingly for your trip. If it is sunny, remember to bring a small towel, a hat, or sunglasses to stay comfortable in the heat. If it is rainy or cloudy, carrying an umbrella is highly recommended.
 2. Warn passengers to be careful of pickpockets and thieves on the bus, especially during crowded times.
 3. Remind passengers that they may fall asleep on the bus and give advice on how not to miss their bus stop.
 4. Provide 2 proactive tips for YBS card users, including topping up in advance, checking balance regularly.
