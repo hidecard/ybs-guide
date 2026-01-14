@@ -734,6 +734,7 @@ const Feedback: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [feedbacks, setFeedbacks] = useState<any[]>([]);
   const [loadingFeedbacks, setLoadingFeedbacks] = useState(true);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
     loadFeedbacks();
@@ -758,7 +759,10 @@ const Feedback: React.FC = () => {
       setUsername('');
       setTitle('');
       setDescription('');
+      setShowSuccess(true);
       loadFeedbacks(); // Refresh the list
+      // Hide success message after 5 seconds
+      setTimeout(() => setShowSuccess(false), 5000);
     } else {
       alert('Failed to submit feedback. Please try again.');
     }
