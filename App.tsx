@@ -876,7 +876,7 @@ const Feedback: React.FC = () => {
               </div>
               <div className="flex justify-between items-center py-2 border-b border-white/5">
                 <span className="text-sm text-slate-400">Technology</span>
-                <span className="text-sm font-bold text-white">React + TypeScript"</span>
+                <span className="text-sm font-bold text-white">React + TypeScript</span>
               </div>
             </div>
           </div>
