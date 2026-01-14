@@ -3,6 +3,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { ViewMode, BusRoute } from './types';
 import { YBS_ROUTES } from './data/busData';
 import { getAIRouteSuggestion, chatWithAI, getDiscoveryInfo, cleanText } from './services/geminiService';
+import { submitFeedback, fetchFeedback } from './services/supabaseService';
 import BusMap from './components/BusMap';
 
 const ITEMS_PER_PAGE = 12;
@@ -225,6 +226,7 @@ const App: React.FC = () => {
       case ViewMode.BUS_LIST: return <BusList onShowOnMap={showOnMap} />;
       case ViewMode.ROUTE_FINDER: return <RouteFinder onTripSearched={handleSaveTrip} onShowOnMap={showOnMap} />;
       case ViewMode.AI_ASSISTANT: return <AIAssistant />;
+      case ViewMode.FEEDBACK: return <Feedback />;
       default: return <ExploreDashboard savedTrips={savedTrips} onSelectSaved={() => {}} onShowOnMap={showOnMap} onUseStop={() => {}} />;
     }
   };
