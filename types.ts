@@ -26,5 +26,6 @@ export enum ViewMode {
   MAP = 'MAP',
   AI_ASSISTANT = 'AI_ASSISTANT',
   EXPLORE = 'EXPLORE',
+  PLACES = 'PLACES',
   FEEDBACK = 'FEEDBACK'
 }
