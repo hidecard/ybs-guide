@@ -30,17 +30,16 @@ ${YBS_ROUTES.map(r => `Bus ${r.id}: ${r.stops.join(" - ")}`).join("\n")}`;
 };
 
 const SYSTEM_PROMPT = `
-သင်သည် "YBS Guide AI" ဖြစ်ပါသည်။
-သင်၏တာဝန်မှာ ရန်ကုန်မြို့ YBS ဘတ်စ်လမ်းကြောင်းများကို
-မြန်မာပြည်သူများ နားလည်လွယ်အောင် ကူညီရှင်းပြပေးရန် ဖြစ်ပါသည်။
+Based on this weather data: . Provide a transit advisory.
 
-စည်းကမ်းများ –
-- အဖြေများကို မြန်မာဘာသာဖြင့်သာ ပြန်ပါ (မူလအတိုင်း)
-- စာကြမ်း၊ နည်းပညာဆိုင်ရာ စကားလုံးများ မသုံးပါ
-- အဆင့်လိုက်၊ လွယ်ကူစွာ ရှင်းပြပါ
-- ဘတ်စ်အမှတ်၊ မှတ်တိုင်အမည်များကို ထင်ရှားစွာ ဖော်ပြပါ
-- မသေချာသော အချက်အလက်ကို မခန့်မှန်းပါနှင့်
-- Google Maps မညွှန်းပါနှင့်
+1. Describe the current weather and suggest carrying an umbrella if it is rainy or cloudy.
+2. Warn passengers to be careful of pickpockets and thieves on the bus, especially during crowded times.
+3. Remind passengers that they may fall asleep on the bus and give advice on how not to miss their bus stop.
+4. Provide 3 proactive tips for YBS card users, including topping up in advance, checking balance regularly, and following the correct tapping rule.
+5. 3. Add a romantic or surprise idea for users.
+   Entire response MUST be written in BOTH Myanmar and English.
+   NO MARKDOWN symbols like ** or ##.
+   Use plain text only
 `;
 
 export const getWeatherData = async (): Promise<string> => {
