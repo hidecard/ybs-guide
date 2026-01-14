@@ -165,11 +165,11 @@ const App: React.FC = () => {
 
   const renderContent = () => {
     switch (activeView) {
-      case ViewMode.EXPLORE: return <ExploreDashboard savedTrips={savedTrips} onSelectSaved={(t) => { setActiveView(ViewMode.ROUTE_FINDER); }} />;
+      case ViewMode.EXPLORE: return <ExploreDashboard savedTrips={savedTrips} onSelectSaved={(t) => { localStorage.setItem('ybs_prefill_trip', JSON.stringify(t)); setActiveView(ViewMode.ROUTE_FINDER); }} onShowOnMap={showOnMap} onUseStop={(stopName: string) => { localStorage.setItem('ybs_nearest_from', stopName); setActiveView(ViewMode.ROUTE_FINDER); }} />;
       case ViewMode.BUS_LIST: return <BusList onShowOnMap={showOnMap} />;
       case ViewMode.ROUTE_FINDER: return <RouteFinder onTripSearched={handleSaveTrip} onShowOnMap={showOnMap} />;
       case ViewMode.AI_ASSISTANT: return <AIAssistant />;
-      default: return <ExploreDashboard savedTrips={savedTrips} onSelectSaved={() => {}} />;
+      default: return <ExploreDashboard savedTrips={savedTrips} onSelectSaved={() => {}} onShowOnMap={showOnMap} onUseStop={() => {}} />;
     }
   };
 
@@ -227,9 +227,13 @@ const App: React.FC = () => {
   );
 };
 
-const ExploreDashboard: React.FC<{savedTrips: {from: string, to: string}[], onSelectSaved: (trip: {from: string, to: string}) => void}> = ({savedTrips, onSelectSaved}) => {
+const ExploreDashboard: React.FC<{savedTrips: {from: string, to: string}[], onSelectSaved: (trip: {from: string, to: string}) => void; onShowOnMap?: (id:string) => void; onUseStop?: (stopName:string) => void}> = ({savedTrips, onSelectSaved, onShowOnMap, onUseStop}) => {
   const [discovery, setDiscovery] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const [findingNearest, setFindingNearest] = useState(false);
+  const [nearestError, setNearestError] = useState<string | null>(null);
+  const [nearestResults, setNearestResults] = useState<any[] | null>(null);
 
   useEffect(() => {
     getDiscoveryInfo().then(res => {
@@ -237,6 +241,75 @@ const ExploreDashboard: React.FC<{savedTrips: {from: string, to: string}[], onSe
       setLoading(false);
     });
   }, []);
+
+  const haversineKm = (lat1:number, lon1:number, lat2:number, lon2:number) => {
+    const toRad = Math.PI / 180;
+    const dLat = (lat2 - lat1) * toRad;
+    const dLon = (lon2 - lon1) * toRad;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1*toRad) * Math.cos(lat2*toRad) * Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return 6371 * c;
+  };
+
+  const parseStopsTsv = (text: string) => {
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    if (!lines.length) return [];
+    const headers = lines[0].split('\t').map(h => h.trim());
+    const rows = lines.slice(1).map(line => {
+      const cols = line.split('\t');
+      const obj: any = {};
+      headers.forEach((h,i) => { obj[h] = cols[i]; });
+      return obj;
+    });
+    return rows;
+  };
+
+  const findNearest = () => {
+    if (!navigator.geolocation) {
+      setNearestError('Geolocation not available in this browser.');
+      return;
+    }
+    setNearestError(null);
+    setFindingNearest(true);
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      try {
+        const { latitude, longitude } = pos.coords;
+        const t = await fetch('/data/stops.tsv').then(r => r.text());
+        const stops = parseStopsTsv(t);
+        const mapped = stops.map((s:any) => ({
+          id: s.id,
+          lat: parseFloat(s.lat || s.lat || 0),
+          lng: parseFloat(s.lng || s.lng || 0),
+          name_en: s.name_en || '',
+          name_mm: s.name_mm || ''
+        })).filter(s => !isNaN(s.lat) && !isNaN(s.lng));
+        mapped.forEach(m => {
+          m.distance = haversineKm(latitude, longitude, m.lat, m.lng);
+        });
+        mapped.sort((a,b) => a.distance - b.distance);
+        const top = mapped.slice(0, 5);
+        // match routes
+        const results = top.map(s => {
+          const nameEn = String(s.name_en || '').toLowerCase();
+          const nameMm = String(s.name_mm || '').toLowerCase();
+          const routes = YBS_ROUTES.filter(r => r.stops.some((st:string) => {
+            const stl = st.toLowerCase();
+            return (nameMm && stl.includes(nameMm)) || (nameEn && stl.includes(nameEn));
+          })).map(r => r.id);
+          return { ...s, routes };
+        });
+        setNearestResults(results);
+      } catch (err:any) {
+        setNearestError('Failed to load stops data.');
+        setNearestResults(null);
+      } finally {
+        setFindingNearest(false);
+      }
+    }, (err) => {
+      setNearestError('Unable to get location: ' + (err?.message || 'permission denied'));
+      setFindingNearest(false);
+    }, { enableHighAccuracy: true, timeout: 10000 });
+  };
 
   return (
     <div className="space-y-12 animate-fadeIn">
@@ -246,9 +319,14 @@ const ExploreDashboard: React.FC<{savedTrips: {from: string, to: string}[], onSe
           <div className="absolute top-0 right-0 p-12 opacity-5 group-hover:scale-110 transition-transform">
              <svg className="w-48 h-48 text-yellow-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
           </div>
-          <div className="flex flex-col gap-2 relative z-10 mb-8 border-b border-white/5 pb-6">
-            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-yellow-400">Transit Advisory / လမ်းညွှန်ချက်</span>
-            <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter">Daily <span className="text-yellow-400">Telemetry</span></h2>
+          <div className="flex items-center justify-between gap-4 flex-wrap relative z-10 mb-8 border-b border-white/5 pb-6">
+            <div className="flex flex-col gap-2">
+              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-yellow-400">Transit Advisory / လမ်းညွှန်ချက်</span>
+              <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter">Daily <span className="text-yellow-400">Telemetry</span></h2>
+            </div>
+            <div className="flex items-center gap-3">
+              <button onClick={findNearest} className="py-3 px-4 bg-yellow-400 text-slate-900 rounded-2xl font-black">{findingNearest ? 'Locating...' : 'Find Nearest Bus'}</button>
+            </div>
           </div>
           
           <div className="relative z-10">
@@ -263,6 +341,29 @@ const ExploreDashboard: React.FC<{savedTrips: {from: string, to: string}[], onSe
               </div>
             )}
           </div>
+          {nearestError && (
+            <div className="mt-6 glass p-4 rounded-2xl text-sm text-red-300">{nearestError}</div>
+          )}
+
+          {nearestResults && (
+            <div className="mt-6 space-y-4">
+              <h3 className="text-sm font-black uppercase tracking-widest text-yellow-400">Nearest Stops / အနီးဆုံး ရပ်နားများ</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {nearestResults.map((r, i) => (
+                  <div key={i} className="glass p-4 rounded-2xl flex items-center justify-between">
+                    <div>
+                      <div className="font-bold text-white myanmar-font">{r.name_mm || r.name_en}</div>
+                      <div className="text-xs text-slate-400">{(r.distance||0).toFixed(2)} km • Routes: {r.routes && r.routes.length ? r.routes.slice(0,6).join(', ') : '—'}</div>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <button onClick={() => { onUseStop?.(r.name_mm || r.name_en); }} className="py-2 px-3 bg-yellow-400 rounded-xl font-black text-slate-900 text-xs">Which bus to take?</button>
+                      <button onClick={() => { if (r.routes && r.routes[0]) onShowOnMap?.(String(r.routes[0])); }} className="py-2 px-3 bg-white/5 rounded-xl text-xs">Show route</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Remini Section (History) */}
@@ -311,6 +412,26 @@ const RouteFinder: React.FC<{onTripSearched?: (trip: {from: string, to: string})
   const [aiResult, setAiResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedBus, setSelectedBus] = useState<BusRoute | null>(null);
+
+  useEffect(() => {
+    // First check if a saved trip was requested to prefill
+    const preTrip = localStorage.getItem('ybs_prefill_trip');
+    if (preTrip) {
+      try {
+        const obj = JSON.parse(preTrip);
+        if (obj?.from) setFrom(obj.from);
+        if (obj?.to) setTo(obj.to);
+      } catch (e) {}
+      localStorage.removeItem('ybs_prefill_trip');
+      return;
+    }
+
+    const pre = localStorage.getItem('ybs_nearest_from');
+    if (pre) {
+      setFrom(pre);
+      localStorage.removeItem('ybs_nearest_from');
+    }
+  }, []);
 
   const handleSearch = async () => {
     if (!from || !to) return;
