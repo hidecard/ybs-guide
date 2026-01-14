@@ -210,10 +210,45 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('ybs_saved_trips');
     return saved ? JSON.parse(saved) : [];
   });
-  const [isOfflineMode, setIsOfflineMode] = useState<boolean>(false);
+  const [isOfflineMode, setIsOfflineMode] = useState<boolean>(!isOnline());
   const [cachedRoutes, setCachedRoutes] = useState<BusRoute[] | null>(null);
   const [cachedStops, setCachedStops] = useState<any[] | null>(null);
   const [cachedDiscovery, setCachedDiscovery] = useState<string | null>(null);
+
+  // Monitor online/offline status
+  useEffect(() => {
+    const handleOnline = () => setIsOfflineMode(false);
+    const handleOffline = () => setIsOfflineMode(true);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Cache data when online
+  useEffect(() => {
+    if (!isOfflineMode) {
+      // Cache routes
+      cacheRoutes(YBS_ROUTES);
+      setCachedRoutes(YBS_ROUTES);
+
+      // Cache stops (simplified, assuming stops are available)
+      // Note: In a real app, you'd fetch stops data here
+      // For now, we'll assume stops are cached separately
+
+      // Cache discovery info
+      getDiscoveryInfo().then(info => {
+        if (info) {
+          cacheDiscoveryInfo(info);
+          setCachedDiscovery(info);
+        }
+      });
+    }
+  }, [isOfflineMode]);
 
   const tabs = [
     { id: ViewMode.EXPLORE, label: 'Explore', labelMm: 'လေ့လာရန်', icon: 'M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 002 2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
@@ -261,6 +296,12 @@ const App: React.FC = () => {
             <span className="text-[10px] font-bold myanmar-font text-slate-500 uppercase tracking-widest leading-none mt-1">Intelligent Hub</span>
           </div>
         </div>
+        {isOfflineMode && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-orange-500/20 border border-orange-500/30 rounded-xl">
+            <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+            <span className="text-xs font-bold text-orange-400">Offline Mode</span>
+          </div>
+        )}
         <nav className="flex-1 space-y-2">
           {tabs.map(tab => (
             <NavItem key={tab.id} id={tab.id as any} label={tab.label} labelMm={tab.labelMm} icon={tab.icon} active={activeView === tab.id} onClick={() => setActiveView(tab.id as any)} />
