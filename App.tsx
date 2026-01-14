@@ -261,7 +261,7 @@ const App: React.FC = () => {
             </div>
             <div className="flex flex-col leading-none">
               <span className="font-black text-sm uppercase tracking-tight">YBS Ai</span>
-              <span className="text-[9px] myanmar-font font-bold text-slate-500 mt-0.5">Transit Intelligence / ဗဟိုချက်</span>
+              <span className="text-[9px] myanmar-font font-bold text-slate-500 mt-0.5">YBS Guide</span>
             </div>
           </div>
         </header>
@@ -775,6 +775,23 @@ const Feedback: React.FC = () => {
         <p className="myanmar-font text-2xl font-bold text-slate-300">အကြံပြုချက်များ ပေးပို့ပါ</p>
       </div>
 
+      {/* Success Message */}
+      {showSuccess && (
+        <div className="glass p-6 rounded-[40px] border border-green-400/30 bg-green-400/10 animate-fadeIn">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-green-400 rounded-2xl flex items-center justify-center text-slate-950">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-green-400">Feedback Submitted Successfully!</h3>
+              <p className="text-sm text-slate-300 myanmar-font">အကြံပြုချက် အောင်မြင်စွာ ပေးပို့ပြီးပါပြီ။</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Feedback Form */}
       <div className="glass p-8 rounded-[40px] border border-white/10 space-y-6">
         <div className="flex items-center gap-3">
@@ -859,7 +876,7 @@ const Feedback: React.FC = () => {
               </div>
               <div className="flex justify-between items-center py-2 border-b border-white/5">
                 <span className="text-sm text-slate-400">Technology</span>
-                <span className="text-sm font-bold text-white">React + TypeScript + Pure Js Ai + Supabase  + Gemini Ai "</span>
+                <span className="text-sm font-bold text-white">React + TypeScript"</span>
               </div>
             </div>
           </div>
@@ -884,7 +901,7 @@ const Feedback: React.FC = () => {
               </div>
               <div className="flex justify-between items-center py-2 border-b border-white/5">
                 <span className="text-sm text-slate-400">Role</span>
-                <span className="text-sm font-bold text-white">Full Stack Developer</span>
+                <span className="text-sm font-bold text-white">Project Manager | Instructor</span>
               </div>
               <div className="flex justify-between items-center py-2">
                 <span className="text-sm text-slate-400">Location</span>
