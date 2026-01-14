@@ -94,7 +94,6 @@ export const chatWithAI = async (message: string) => {
   const prompt = `${SYSTEM_PROMPT}
 
 အသုံးပြုသူသည် YBS ဘတ်စ်ကို မစီးဖူးသေးသော သူများဖြစ်ပါသည်။
-ကလေးကို သင်ပေးသလို လွယ်ကူစွာ ရှင်းပြပါ။
 
 - စာကြမ်းမသုံးပါ
 - စာကြောင်းတိုတို အသုံးပြုပါ
@@ -121,15 +120,16 @@ export const getDiscoveryInfo = async () => {
   const weather = await getWeatherData();
   const prompt = `${SYSTEM_PROMPT}
 
-လက်ရှိရာသီဥတု: ${weather}
+Based on this weather data: ${weather} . Provide a transit advisory.
 
-အဖြေကို အောက်ပါပုံစံနဲ့ ပြန်ပါ –
-
-🚌 ဘတ်စ်အမှတ်:
-📍 စီးရမည့်မှတ်တိုင်:
-📍 ဆင်းရမည့်မှတ်တိုင်:
-🔁 ဘတ်စ်ပြောင်း:
-💡 အကြံပြုချက်:
+1. Describe the current weather and suggest carrying an umbrella if it is rainy or cloudy.
+2. Warn passengers to be careful of pickpockets and thieves on the bus, especially during crowded times.
+3. Remind passengers that they may fall asleep on the bus and give advice on how not to miss their bus stop.
+4. Provide 3 proactive tips for YBS card users, including topping up in advance, checking balance regularly, and following the correct tapping rule.
+5. 3. Add a romantic or surprise idea for users.
+   Entire response MUST be written in BOTH Myanmar and English.
+   NO MARKDOWN symbols like ** or ##.
+   Use plain text only
 `;
 
   try {
