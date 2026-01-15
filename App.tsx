@@ -254,7 +254,7 @@ const App: React.FC = () => {
     { id: ViewMode.EXPLORE, label: 'Explore', labelMm: 'လေ့လာရန်', icon: 'M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 002 2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
     { id: ViewMode.ROUTE_FINDER, label: 'Finder', labelMm: 'ရှာဖွေရန်', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
     { id: ViewMode.BUS_LIST, label: 'Lines', labelMm: 'လိုင်းများ', icon: 'M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z' },
-    { id: ViewMode.PLACES, label: 'Places', labelMm: 'နေရာများ', icon: 'M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z' },
+
     // Which Bus view removed
     { id: ViewMode.AI_ASSISTANT, label: 'Assistant', labelMm: 'အေအိုင်', icon: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z' },
     { id: ViewMode.FEEDBACK, label: 'Feedback', labelMm: 'အကြံပြုချက်', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z' },
@@ -277,7 +277,7 @@ const App: React.FC = () => {
       case ViewMode.EXPLORE: return <ExploreDashboard savedTrips={savedTrips} onSelectSaved={(t) => { localStorage.setItem('ybs_prefill_trip', JSON.stringify(t)); setActiveView(ViewMode.ROUTE_FINDER); }} onShowOnMap={showOnMap} onUseStop={(stopName: string) => { localStorage.setItem('ybs_nearest_from', stopName); setActiveView(ViewMode.ROUTE_FINDER); }} />;
       case ViewMode.BUS_LIST: return <BusList onShowOnMap={showOnMap} cachedRoutes={cachedRoutes} isOfflineMode={isOfflineMode} />;
       case ViewMode.ROUTE_FINDER: return <RouteFinder onTripSearched={handleSaveTrip} onShowOnMap={showOnMap} cachedRoutes={cachedRoutes} isOfflineMode={isOfflineMode} />;
-      case ViewMode.PLACES: return <Places />;
+
       case ViewMode.AI_ASSISTANT: return <AIAssistant />;
       case ViewMode.FEEDBACK: return <Feedback />;
       default: return <ExploreDashboard savedTrips={savedTrips} onSelectSaved={() => {}} onShowOnMap={showOnMap} onUseStop={() => {}} cachedDiscovery={cachedDiscovery} isOfflineMode={isOfflineMode} />;
@@ -993,144 +993,6 @@ const Feedback: React.FC = () => {
   );
 };
 
-const Places: React.FC = () => {
-  const [selectedCategory, setSelectedCategory] = useState<string>('pagodas');
-  const [selectedPlace, setSelectedPlace] = useState<any>(null);
 
-  const categories = [
-    { id: 'pagodas', label: 'Pagodas', labelMm: 'ဘုရားကြီးများ', icon: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' },
-    { id: 'markets', label: 'Markets', labelMm: 'ဈေးများ', icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z M8 5a2 2 0 012-2h4a2 2 0 012 2v2H8V5z' },
-    { id: 'parks', label: 'Parks', labelMm: 'ဥယျာဉ်များ', icon: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z' },
-    { id: 'museums', label: 'Museums', labelMm: 'ပြတိုက်များ', icon: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' },
-  ];
-
-  const places = {
-    pagodas: [
-      { id: 'shwedagon', name: 'Shwedagon Pagoda', nameMm: 'ရွှေတိဂုံဘုရား', description: 'The most sacred Buddhist pagoda in Myanmar, covered in gold.', descriptionMm: 'မြန်မာနိုင်ငံ၏ အသက်သာဆုံးသော ဗုဒ္ဓဘာသာဘုရားကြီး၊ ရွှေဖြင့် ဖုံးလွှမ်းထားသည်။', location: 'ရန်ကုန်မြို့တော်၊ ဒဂုံမြို့နယ်', buses: ['1', '2', '3A', '3B'] },
-      { id: 'sule', name: 'Sule Pagoda', nameMm: 'စူးလေဘုရား', description: 'A historic pagoda in the center of Yangon, dating back to the 15th century.', descriptionMm: 'ရန်ကုန်မြို့ဗဟိုတွင် ရှိသော သမိုင်းဝင်ဘုရားကြီး၊ ၁၅ ရာစုကျော်ကျော်သက်တမ်းရှိသည်။', location: 'ရန်ကုန်မြို့တော်၊ ကျောက်တံတားမြို့နယ်', buses: ['1', '2', '3A', '3B', '4'] },
-      { id: 'botataung', name: 'Botataung Pagoda', nameMm: 'ဗိုလ်တထောင်ဘုရား', description: 'Famous for its hollow stupa containing ancient Buddhist relics.', descriptionMm: 'ဗုဒ္ဓဘာသာရှင်ပုထုဇဉ်များကို ထားရှိထားသော ဗလာဘုရားကြီး ဖြစ်သည်။', location: 'ရန်ကုန်မြို့တော်၊ ဗိုလ်တထောင်မြို့နယ်', buses: ['1', '2', '3A', '3B'] },
-      { id: 'chaukhtatgyi', name: 'Chauk Htat Gyi Pagoda', nameMm: 'ခြောက်ထပ်ကြီးဘုရား', description: 'Home to the largest reclining Buddha image in Yangon.', descriptionMm: 'ရန်ကုန်မြို့တွင် အကြီးဆုံးသော လဲလျောင်းဗုဒ္ဓရုပ်ပွားတော်ကို ထားရှိထားသည်။', location: 'ရန်ကုန်မြို့တော်၊ ဗဟန်းမြို့နယ်', buses: ['1', '2', '3A', '3B', '4'] },
-    ],
-    markets: [
-      { id: 'bogyoke', name: 'Bogyoke Aung San Market', nameMm: 'ဗိုလ်ချုပ်အောင်ဆန်းဈေး', description: 'Yangon\'s largest market, known for traditional crafts and souvenirs.', descriptionMm: 'ရန်ကုန်မြို့၏ အကြီးဆုံးဈေး၊ ရိုးရာလက်မှုပစ္စည်းများနှင့် အမှတ်တရပစ္စည်းများဖြင့် ကျော်ကြားသည်။', location: 'ရန်ကုန်မြို့တော်၊ ဗဟန်းမြို့နယ်', buses: ['1', '2', '3A', '3B', '4'] },
-      { id: 'theingyi', name: 'Theingyi Market', nameMm: 'သိမ်းကျီဈေး', description: 'A bustling market famous for fresh produce and street food.', descriptionMm: 'ဟင်းသီးဟင်းရွက်များနှင့် လမ်းဘေးစားသောက်ကုန်များဖြင့် ကျော်ကြားသော ဈေးကြီး။', location: 'ရန်ကုန်မြို့တော်၊ သိမ်းကျီမြို့နယ်', buses: ['1', '2', '3A', '3B'] },
-      { id: 'china', name: 'China Town Market', nameMm: 'တရုတ်လူမျိုးဈေး', description: 'Vibrant market area with Chinese influences and diverse food options.', descriptionMm: 'တရုတ်လူမျိုးရိုးရာနှင့် အစားအသောက်အမျိုးမျိုးဖြင့် ကျော်ကြားသော ဈေးကွက်။', location: 'ရန်ကုန်မြို့တော်၊ လမ်းမတော်မြို့နယ်', buses: ['1', '2', '3A', '3B', '4'] },
-    ],
-    parks: [
-      { id: 'kandawgyi', name: 'Kandawgyi Lake', nameMm: 'ကန်တော်ကြီး', description: 'Beautiful artificial lake and park, perfect for relaxation and boating.', descriptionMm: 'အလှအပအနားယူရန်နှင့် လှေစီးနားရန် အကောင်းဆုံးသော လုပ်ကြံရေကန်ကြီး။', location: 'ရန်ကုန်မြို့တော်၊ ဒဂုံမြို့နယ်', buses: ['1', '2', '3A', '3B'] },
-      { id: 'people', name: 'People\'s Park', nameMm: 'ပြည်သူ့ဥယျာဉ်', description: 'Popular park with playgrounds, gardens, and recreational facilities.', descriptionMm: 'ကစားကွင်းများ၊ ဥယျာဉ်များနှင့် အပန်းဖြေနေရာများရှိသော လူကြိုက်များသော ဥယျာဉ်။', location: 'ရန်ကုန်မြို့တော်၊ ဒဂုံမြို့နယ်', buses: ['1', '2', '3A', '3B'] },
-      { id: 'mahar', name: 'Mahar Bandoola Garden', nameMm: 'မဟာဗန္ဓုလဥယျာဉ်', description: 'Historic garden with colonial architecture and beautiful landscapes.', descriptionMm: 'ကိုလိုနီခေတ်ဗိသုကာနှင့် လှပသောရှုခင်းများရှိသော သမိုင်းဝင်ဥယျာဉ်။', location: 'ရန်ကုန်မြို့တော်၊ ဗဟန်းမြို့နယ်', buses: ['1', '2', '3A', '3B', '4'] },
-    ],
-    museums: [
-      { id: 'national', name: 'National Museum', nameMm: 'အမျိုးသားပြတိုက်', description: 'Showcases Myanmar\'s rich history, culture, and artifacts.', descriptionMm: 'မြန်မာနိုင်ငံ၏ သမိုင်းကြွယ်ဝသော ယဉ်ကျေးမှုနှင့် အထောက်အထားများကို ပြသထားသည်။', location: 'ရန်ကုန်မြို့တော်၊ ဒဂုံမြို့နယ်', buses: ['1', '2', '3A', '3B'] },
-      { id: 'bogyoke', name: 'Bogyoke Aung San Museum', nameMm: 'ဗိုလ်ချုပ်အောင်ဆန်းပြတိုက်', description: 'Dedicated to General Aung San and Myanmar\'s independence struggle.', descriptionMm: 'ဗိုလ်ချုပ်အောင်ဆန်းနှင့် မြန်မာနိုင်ငံ၏ လွတ်လပ်ရေးတိုက်ပွဲကို အထူးပြသထားသည်။', location: 'ရန်ကုန်မြို့တော်၊ ဗဟန်းမြို့နယ်', buses: ['1', '2', '3A', '3B', '4'] },
-    ],
-  };
-
-  return (
-    <div className="space-y-12 animate-fadeIn">
-      {selectedPlace && (
-        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
-          <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-xl" onClick={() => setSelectedPlace(null)}></div>
-          <div className="relative w-full sm:max-w-lg md:max-w-2xl lg:max-w-4xl xl:max-w-5xl h-full sm:h-auto sm:max-h-[95vh] glass sm:rounded-[40px] border-t sm:border border-white/20 shadow-2xl flex flex-col overflow-hidden">
-            <div className="p-4 md:p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
-              <div className="flex items-center gap-3 md:gap-4">
-                <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-yellow-400 flex items-center justify-center text-slate-950 font-black text-xl md:text-2xl">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="font-black text-white uppercase tracking-tight italic text-lg md:text-xl">{selectedPlace.name}</h3>
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] myanmar-font">{selectedPlace.nameMm}</p>
-                </div>
-              </div>
-              <button onClick={() => setSelectedPlace(null)} className="p-3 bg-white/5 rounded-2xl text-slate-400 hover:bg-white/10 transition-colors border border-white/10 active:scale-95">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto custom-scrollbar">
-              <div className="p-4 md:p-8 space-y-6">
-                <div className="space-y-4">
-                  <h4 className="text-sm font-bold text-slate-300 uppercase tracking-widest">Description / ဖော်ပြချက်</h4>
-                  <p className="text-base myanmar-font font-semibold text-slate-200 leading-relaxed">{selectedPlace.description}</p>
-                  <p className="text-base myanmar-font font-semibold text-slate-200 leading-relaxed">{selectedPlace.descriptionMm}</p>
-                </div>
-
-                <div className="space-y-4">
-                  <h4 className="text-sm font-bold text-slate-300 uppercase tracking-widest">Location / တည်နေရာ</h4>
-                  <p className="text-base myanmar-font font-semibold text-slate-200">{selectedPlace.location}</p>
-                </div>
-
-                <div className="space-y-4">
-                  <h4 className="text-sm font-bold text-slate-300 uppercase tracking-widest">Nearby Bus Routes / အနီးအနားဘတ်စ်လမ်းကြောင်းများ</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedPlace.buses.map((bus: string) => (
-                      <span key={bus} className="px-3 py-1 bg-yellow-400 text-slate-950 rounded-full font-black text-sm">{bus}</span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="space-y-8">
-        <div className="space-y-2">
-          <h2 className="text-4xl font-black tracking-tight uppercase leading-none">Yangon <span className="text-yellow-400">Places</span></h2>
-          <h3 className="myanmar-font text-2xl font-bold text-slate-300">ရန်ကုန်မြို့ နေရာများ</h3>
-        </div>
-
-        <div className="flex flex-wrap gap-4">
-          {categories.map(category => (
-            <button
-              key={category.id}
-              onClick={() => setSelectedCategory(category.id)}
-              className={`flex items-center gap-3 px-6 py-4 rounded-2xl transition-all duration-300 ${
-                selectedCategory === category.id ? 'text-yellow-400 bg-yellow-400/10 border border-yellow-400/30' : 'text-slate-400 hover:text-slate-200 bg-white/5 border border-white/10'
-              }`}
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={category.icon} />
-              </svg>
-              <div className="flex flex-col items-start leading-none">
-                <span className="text-[10px] font-black tracking-widest uppercase">{category.label}</span>
-                <span className="text-[11px] font-bold myanmar-font mt-1">{category.labelMm}</span>
-              </div>
-            </button>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {places[selectedCategory as keyof typeof places].map((place: any) => (
-            <div key={place.id} className="glass p-6 rounded-[32px] group hover:border-yellow-400/40 transition-all flex flex-col gap-6 bg-white/5 border border-white/5">
-              <div className="flex justify-between items-start">
-                <div className="w-12 h-12 rounded-2xl bg-yellow-400 flex items-center justify-center text-slate-950 font-black text-xl">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {place.buses.slice(0, 3).map((bus: string) => (
-                    <span key={bus} className="px-2 py-1 bg-white/10 rounded-lg text-[8px] font-black uppercase text-slate-400">{bus}</span>
-                  ))}
-                  {place.buses.length > 3 && <span className="px-2 py-1 bg-white/10 rounded-lg text-[8px] font-black uppercase text-slate-400">+{place.buses.length - 3}</span>}
-                </div>
-              </div>
-              <div className="space-y-3">
-                <h4 className="font-bold text-slate-100 uppercase tracking-wide text-sm">{place.name}</h4>
-                <p className="text-xs myanmar-font font-bold text-slate-400">{place.nameMm}</p>
-                <p className="text-sm myanmar-font font-semibold text-slate-300 line-clamp-2">{place.description}</p>
-              </div>
-              <button onClick={() => setSelectedPlace(place)} className="w-full py-3 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-yellow-400 hover:border-yellow-400/30 transition-all">View Details</button>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
 
 export default App;
