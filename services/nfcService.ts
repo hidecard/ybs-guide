@@ -80,6 +80,37 @@ export const readNFCCard = async (): Promise<NFCReadResult> => {
               if (balanceMatch) {
                 balance = parseInt(balanceMatch[1], 10);
               }
+
+              // YBS card format: "card No 1118 1010 1100 5206 184"
+              // Full card ID: "1118101011005206184" (all numbers concatenated)
+              // Format: card No [cardIdPart1] [cardIdPart2] [cardIdPart3] [balance] [extra]
+              // Balance is the 5th value (index 5), card ID is full concatenated number
+              if (text.toLowerCase().startsWith('card no')) {
+                const parts = text.split(/\s+/);
+                if (parts.length >= 6) {
+                  // Example: ["card", "No", "1118", "1010", "1100", "5206", "184"]
+                  // Full card ID = "1118101011005206184"
+                  const balanceValue = parts[5];
+                  const cardIdFull = parts[2] + parts[3] + parts[4] + parts[5] + parts[6];
+                  
+                  // Validate that balance is a number
+                  if (!isNaN(parseInt(balanceValue, 10))) {
+                    balance = parseInt(balanceValue, 10);
+                    cardId = cardIdFull;
+                    console.log('Parsed YBS card - Balance:', balance, 'Card ID:', cardId);
+                  }
+                }
+              } else {
+                // Check if the text is just the full card ID (e.g., "1118101011005206184")
+                // This is the concatenated card number without "card No" prefix
+                const cleanText = text.replace(/[^0-9]/g, '');
+                if (cleanText.length >= 16 && !isNaN(parseInt(cleanText, 10))) {
+                  cardId = cleanText;
+                  console.log('Parsed YBS card ID (direct):', cardId);
+                  // Note: Balance cannot be extracted from the card ID alone
+                  // It needs to be looked up from a backend service
+                }
+              }
             }
 
             // Check for URL or other record types that might contain balance info
