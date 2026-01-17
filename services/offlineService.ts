@@ -142,3 +142,26 @@ export async function getCacheSize(): Promise<number> {
     return 0;
   }
 }
+
+// Cache individual route
+export async function cacheRoute(routeId: string, routeData: any): Promise<void> {
+  try {
+    const db = await dbPromise;
+    await db.put('routes', routeData, `route_${routeId}`);
+    console.log(`Route ${routeId} cached successfully`);
+  } catch (error) {
+    console.error(`Failed to cache route ${routeId}:`, error);
+  }
+}
+
+// Get cached individual route
+export async function getCachedRoute(routeId: string): Promise<any | null> {
+  try {
+    const db = await dbPromise;
+    const route = await db.get('routes', `route_${routeId}`);
+    return route || null;
+  } catch (error) {
+    console.error(`Failed to get cached route ${routeId}:`, error);
+    return null;
+  }
+}
