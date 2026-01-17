@@ -25,7 +25,7 @@ import {
   isBalanceLow,
   getBalanceInsights,
 } from './services/cardService';
-import { isNFCSupported, readNFCCard, mockNFCRead } from './services/nfcService';
+// NFC feature removed
 import BusMap from './components/BusMap';
 import CardGuide from './components/CardGuide';
 
@@ -1062,8 +1062,6 @@ const CardCompanion: React.FC<{ onBalanceUpdate: () => void }> = ({ onBalanceUpd
   const [inputType, setInputType] = useState<'topup' | 'deduct'>('deduct');
   const [inputDescription, setInputDescription] = useState('');
   const [reminderThreshold, setReminderThreshold] = useState(1000);
-  const [nfcReading, setNfcReading] = useState(false);
-  const [nfcMessage, setNfcMessage] = useState('');
 
   const loadData = async () => {
     setLoading(true);
@@ -1122,26 +1120,6 @@ const CardCompanion: React.FC<{ onBalanceUpdate: () => void }> = ({ onBalanceUpd
     await updateCardSettings({ reminderThreshold });
     await loadData();
     onBalanceUpdate();
-  };
-
-  const handleNFCRead = async () => {
-    setNfcReading(true);
-    setNfcMessage('Reading NFC card...');
-    
-    const result = await readNFCCard();
-    
-    if (result.success && result.balance !== undefined) {
-      setNfcMessage(`Card read successfully! Balance: ${result.balance} MMK`);
-      await setCardBalance(result.balance, 'MMK');
-      await loadData();
-      onBalanceUpdate();
-      setTimeout(() => setNfcMessage(''), 5000);
-    } else {
-      setNfcMessage(result.error || 'Failed to read card');
-      setTimeout(() => setNfcMessage(''), 5000);
-    }
-    
-    setNfcReading(false);
   };
 
   const quickAmounts = [200, 300, 400, 500, 1000, 3000, 5000];
@@ -1208,8 +1186,8 @@ const CardCompanion: React.FC<{ onBalanceUpdate: () => void }> = ({ onBalanceUpd
         </div>
       </div>
 
-      {/* Quick Actions & NFC */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 gap-6">
         {/* Manual Input */}
         <div className="glass p-6 rounded-[32px] border border-white/10 space-y-4">
           <h3 className="text-sm font-black uppercase tracking-widest text-yellow-400">Update Balance / ငွေပြောင်းလဲရန်</h3>
@@ -1286,37 +1264,6 @@ const CardCompanion: React.FC<{ onBalanceUpdate: () => void }> = ({ onBalanceUpd
               </div>
             )}
           </div>
-        </div>
-
-        {/* NFC Section */}
-        <div className="glass p-6 rounded-[32px] border border-white/10 space-y-4">
-          <h3 className="text-sm font-black uppercase tracking-widest text-yellow-400">NFC Card Reader / NFC ဖတ်ရန်</h3>
-          
-          {isNFCSupported() ? (
-            <div className="space-y-4">
-              <p className="text-sm text-slate-300">Tap your YBS card to read the balance using NFC.</p>
-              <button
-                onClick={handleNFCRead}
-                disabled={nfcReading}
-                className="w-full py-8 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-black uppercase text-sm hover:brightness-110 transition-all disabled:opacity-50 flex items-center justify-center gap-3"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
-                </svg>
-                {nfcReading ? 'Reading...' : 'Scan Card'}
-              </button>
-              {nfcMessage && (
-                <div className={`p-3 rounded-xl text-sm font-bold ${nfcMessage.includes('success') ? 'bg-green-500/20 text-green-400' : 'bg-orange-500/20 text-orange-400'}`}>
-                  {nfcMessage}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="glass-card p-4 rounded-xl border border-white/10 bg-slate-900/40">
-              <p className="text-sm text-slate-400 mb-2">NFC not supported on this device/browser.</p>
-              <p className="text-xs text-slate-500">Use manual input or try Chrome/Edge on Android with HTTPS.</p>
-            </div>
-          )}
         </div>
       </div>
 
