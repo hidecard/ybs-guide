@@ -770,9 +770,7 @@ const AIAssistant: React.FC = () => {
             <button
               onClick={() => {
                 const p = (window as any).puter;
-                if (typeof p !== 'undefined' && p?.ui && p.ui.showTerms) {
-                  p.ui.showTerms();
-                } else if (p?.ai) {
+                if (typeof p !== 'undefined' && p?.ai) {
                   p.ai.chat("Hello", { model: 'gemini-3-flash-preview' });
                 }
               }}
