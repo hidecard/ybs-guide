@@ -54,9 +54,10 @@ export const readNFCCard = async (): Promise<NFCReadResult> => {
       ndef.addEventListener('reading', ({ message, serialNumber }: any) => {
         clearTimeout(timeout);
         
-        console.log('NFC card detected:', serialNumber);
-        console.log('NDEF message:', message);
-
+        console.log('=== NFC Card Detected ===');
+        console.log('Serial Number:', serialNumber);
+        console.log('NDEF Message:', JSON.stringify(message, null, 2));
+        
         try {
           // Parse NDEF message to extract balance
           // This is a placeholder implementation
@@ -64,14 +65,46 @@ export const readNFCCard = async (): Promise<NFCReadResult> => {
           let balance: number | undefined;
           let cardId = serialNumber;
 
-          for (const record of message.records) {
+          console.log('Number of records:', message.records.length);
+          
+          for (let i = 0; i < message.records.length; i++) {
+            const record = message.records[i];
+            console.log(`\n--- Record ${i} ---`);
             console.log('Record type:', record.recordType);
+            console.log('Record TNF (Type Name Format):', record.tnf);
+            console.log('Record data type:', typeof record.data);
             console.log('Record data:', record.data);
+            
+            // Log data details based on type
+            if (record.data instanceof ArrayBuffer) {
+              console.log('Data is ArrayBuffer, size:', record.data.byteLength);
+              const bytes = new Uint8Array(record.data);
+              console.log('Bytes:', Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' '));
+              console.log('Bytes as string:', Array.from(bytes).map(b => String.fromCharCode(b)).join(''));
+            } else if (typeof record.data === 'string') {
+              console.log('Data is string, length:', record.data.length);
+            } else {
+              console.log('Data is other type:', Object.prototype.toString.call(record.data));
+            }
 
             // Check if this is a text record
             if (record.recordType === 'text') {
-              const textDecoder = new TextDecoder(record.encoding || 'utf-8');
-              const text = textDecoder.decode(record.data);
+              let text = '';
+              
+              // Handle different data formats (ArrayBuffer, string, etc.)
+              if (record.data instanceof ArrayBuffer) {
+                const textDecoder = new TextDecoder(record.encoding || 'utf-8');
+                text = textDecoder.decode(record.data);
+              } else if (typeof record.data === 'string') {
+                text = record.data;
+              } else if (record.data && record.data.buffer instanceof ArrayBuffer) {
+                const textDecoder = new TextDecoder(record.encoding || 'utf-8');
+                text = textDecoder.decode(record.data);
+              } else {
+                // Try to convert to string
+                text = String(record.data);
+              }
+              
               console.log('Text content:', text);
 
               // Try to extract balance from text
@@ -79,6 +112,7 @@ export const readNFCCard = async (): Promise<NFCReadResult> => {
               const balanceMatch = text.match(/BALANCE[:\s]*(\d+)/i);
               if (balanceMatch) {
                 balance = parseInt(balanceMatch[1], 10);
+                console.log('Extracted balance from BALANCE pattern:', balance);
               }
 
               // YBS card format: "card No 1118 1010 1100 5206 184"
@@ -91,7 +125,7 @@ export const readNFCCard = async (): Promise<NFCReadResult> => {
                   // Example: ["card", "No", "1118", "1010", "1100", "5206", "184"]
                   // Full card ID = "1118101011005206184"
                   const balanceValue = parts[5];
-                  const cardIdFull = parts[2] + parts[3] + parts[4] + parts[5] + parts[6];
+                  const cardIdFull = parts[2] + parts[3] + parts[4] + parts[5] + (parts[6] || '');
                   
                   // Validate that balance is a number
                   if (!isNaN(parseInt(balanceValue, 10))) {
@@ -109,6 +143,24 @@ export const readNFCCard = async (): Promise<NFCReadResult> => {
                   console.log('Parsed YBS card ID (direct):', cardId);
                   // Note: Balance cannot be extracted from the card ID alone
                   // It needs to be looked up from a backend service
+                }
+              }
+
+              // Fallback: Try to find all numbers in the text and use the largest one as balance
+              // This handles cases where the format might be slightly different
+              if (balance === undefined) {
+                const allNumbers = text.match(/\d+/g);
+                if (allNumbers && allNumbers.length > 0) {
+                  // Get the largest number that looks like a balance (typically 4-6 digits)
+                  const candidateBalances = allNumbers
+                    .map(n => parseInt(n, 10))
+                    .filter(n => n >= 100 && n <= 999999);
+                  
+                  if (candidateBalances.length > 0) {
+                    // Use the largest number as the balance (assuming it's the balance)
+                    balance = Math.max(...candidateBalances);
+                    console.log('Fallback: Extracted balance from numbers:', balance, 'All numbers:', allNumbers);
+                  }
                 }
               }
             }
@@ -146,11 +198,12 @@ export const readNFCCard = async (): Promise<NFCReadResult> => {
               cardId,
             });
           } else {
-            // If we couldn't parse balance, return card ID at least
+            // If we couldn't parse balance, return card ID at least with debug info
+            console.log('Could not parse balance from card data. Card ID:', cardId);
             resolve({
               success: false,
               cardId,
-              error: 'Could not read balance from card. The card format may not be supported yet.',
+              error: 'Could not read balance from card. The card format may not be supported yet. Check console for raw data.',
             });
           }
         } catch (parseError) {
