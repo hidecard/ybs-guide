@@ -1,0 +1,254 @@
+<parameter name="content">import { YBS_ROUTES } from "../data/busData";
+
+// Pre-trained knowledge base for offline AI
+const ROUTE_RULES = `
+YBS ROUTE RULES & PATTERNS:
+- Bus numbers indicate the route line (e.g., Bus 15, Bus 36)
+- Most routes have a "A" or "B" variant that goes in opposite directions
+- Route numbers ending in "A" usually go one direction, "B" goes the reverse
+- Mini buses (marked "Mini") have fewer stops and are faster
+- Peak hours: 7-9 AM and 4-7 PM (more crowded)
+- Standard fare: 200 MMK for regular routes
+- Air-conditioned buses: 300-500 MMK
+`;
+
+const COMMON_QUESTIONS: { [key: string]: string } = {
+  "fare": `YBS Bus Fares:
+- Regular bus: 200 MMK
+- Air-conditioned: 300-500 MMK depending on route
+- YBS Card: Offers discounts and easier payment
+- Payment: Cash or YBS Card (no change given on some buses)`,
+
+  "card": `YBS Card Information:
+- Purchase at major bus terminals or convenience stores
+- Top up with any amount (minimum 500 MMK recommended)
+- Balance checked by driver or at terminals
+- Non-transferable between users
+- Lost cards cannot be recovered (balance not refunded)`,
+
+  "hours": `Bus Operating Hours:
+- Most routes: 5:00 AM - 9:00 PM
+- Some popular routes: until 10:00 PM
+- Reduced frequency after 8:00 PM
+- Night buses available on select routes (limited)`,
+
+  "lost": `What to do if you miss your stop:
+1. Stay calm - the next stop is never far
+2. Tell the driver "နောက်တစ်မှတ်ပါ" (next stop please)
+3. Get off at the next stop and wait for a return bus
+4. Return buses have the same number but marked "Return" or opposite direction`,
+
+  "transfer": `Bus Transfer Tips:
+- Major transfer points: Sule Pagoda, Yangon Central, Hledan, Myaynigone
+- Some routes connect directly without needing transfers
+- For shortest travel: look for routes that go directly or with one transfer
+- Transferring adds 15-30 minutes typically`,
+
+  "crowd": `Avoiding Crowded Buses:
+- Travel outside peak hours (before 7 AM, after 7 PM)
+- Stand at the front of the stop queue
+- Women-only sections available on some buses
+- Larger buses (60-seater) are less crowded than mini buses`,
+
+  "direction": `Finding the Right Direction:
+- Look at the route number and A/B suffix
+- A routes go one direction, B routes go opposite
+- Ask locals "ဒီဘတ်စ်က ဘယ်သွားလဲ?" (Where is this bus going?)
+- Check the first and last stop listed on the bus`
+};
+
+interface OfflineAIResponse {
+  answer: string;
+  source: 'route_rules' | 'common_question' | 'location' | 'general';
+  confidence: number;
+}
+
+export const findOfflineAnswer = (question: string): OfflineAIResponse => {
+  const questionLower = question.toLowerCase();
+  
+  // Check for fare/card questions
+  if (questionLower.includes('fare') || questionLower.includes('price') || questionLower.includes('cost') ||
+      questionLower.includes('ငွေ') || questionLower.includes('ကြေး')) {
+    return {
+      answer: COMMON_QUESTIONS.fare,
+      source: 'common_question',
+      confidence: 0.9
+    };
+  }
+  
+  if (questionLower.includes('card') || questionLower.includes('ကတ်') || questionLower.includes('top up') ||
+      questionLower.includes('ဖြည့်')) {
+    return {
+      answer: COMMON_QUESTIONS.card,
+      source: 'common_question',
+      confidence: 0.9
+    };
+  }
+  
+  // Check for operating hours
+  if (questionLower.includes('time') || questionLower.includes('hour') || questionLower.includes('အချိန်') ||
+      questionLower.includes('ဘယ်သွား')) {
+    return {
+      answer: COMMON_QUESTIONS.hours,
+      source: 'common_question',
+      confidence: 0.85
+    };
+  }
+  
+  // Check for lost stop
+  if (questionLower.includes('miss') || questionLower.includes('ပျောက်') || questionLower.includes('လွတ်') ||
+      questionLower.includes('နောက်ကျ')) {
+    return {
+      answer: COMMON_QUESTIONS.lost,
+      source: 'common_question',
+      confidence: 0.9
+    };
+  }
+  
+  // Check for transfer
+  if (questionLower.includes('transfer') || questionLower.includes('ပြောင်း') || questionLower.includes('ချိတ်') ||
+      questionLower.includes('ဆက်')) {
+    return {
+      answer: COMMON_QUESTIONS.transfer,
+      source: 'common_question',
+      confidence: 0.9
+    };
+  }
+  
+  // Check for crowded
+  if (questionLower.includes('crowd') || questionLower.includes('拥挤') || questionLower.includes('လူတွေများ') ||
+      questionLower.includes('ကျပ်')) {
+    return {
+      answer: COMMON_QUESTIONS.crowd,
+      source: 'common_question',
+      confidence: 0.85
+    };
+  }
+  
+  // Check for direction
+  if (questionLower.includes('direction') || questionLower.includes('ဘယ်') || questionLower.includes('ဘက်') ||
+      questionLower.includes('ဘယ်သွား')) {
+    return {
+      answer: COMMON_QUESTIONS.direction,
+      source: 'common_question',
+      confidence: 0.9
+    };
+  }
+  
+  return {
+    answer: '',
+    source: 'general',
+    confidence: 0
+  };
+};
+
+export const findRouteOffline = (from: string, to: string): string | null => {
+  const fromLower = from.toLowerCase().trim();
+  const toLower = to.toLowerCase().trim();
+  
+  // Find routes that contain both stops
+  const matchingRoutes = YBS_ROUTES.filter(route => {
+    const routeStops = route.stops.map(s => s.toLowerCase());
+    const fromIndex = routeStops.findIndex(s => s.includes(fromLower) || fromLower.includes(s));
+    const toIndex = routeStops.findIndex(s => s.includes(toLower) || toLower.includes(s));
+    return fromIndex !== -1 && toIndex !== -1 && fromIndex < toIndex;
+  });
+  
+  if (matchingRoutes.length > 0) {
+    return matchingRoutes.map(r => r.id).join(', ');
+  }
+  
+  return null;
+};
+
+export const getOfflineRouteSuggestion = (from: string, to: string): string => {
+  const directRoute = findRouteOffline(from, to);
+  
+  if (directRoute) {
+    return `Direct Route Found:
+Take Bus ${directRoute} from "${from}" to "${to}".
+
+This is the most direct route without transfers.`;
+  }
+  
+  // Try to find partial matches
+  const fromMatches = YBS_ROUTES.filter(r => 
+    r.stops.some(s => s.toLowerCase().includes(from.toLowerCase()))
+  ).length;
+  
+  const toMatches = YBS_ROUTES.filter(r => 
+    r.stops.some(s => s.toLowerCase().includes(to.toLowerCase()))
+  ).length;
+  
+  if (fromMatches === 0 || toMatches === 0) {
+    return `Unable to find routes matching "${from}" or "${to}".
+
+Suggestions:
+1. Check spelling of location names
+2. Try common names for the area
+3. Look for nearby major landmarks
+4. Use the full route list to find your stop
+
+For better results, try:
+- Sule Pagoda
+- Yangon Central
+- Hledan Junction
+- Myaynigone Zay`;
+  }
+  
+  return `No direct route found from "${from}" to "${to}".
+
+Options:
+1. Take any bus going toward ${from} or ${to} direction
+2. Transfer at major hubs (Sule, Hledan, Myaynigone)
+3. Use two buses with a transfer point
+
+Route Rules:
+- Buses marked "A" and "B" go opposite directions
+- Ask driver to notify you at your stop
+- Tell "နောက်တစ်မှတ်ပါ" (next stop)`;
+};
+
+export const getOfflineKnowledge = (topic: string): string => {
+  const topicLower = topic.toLowerCase();
+  
+  if (topicLower.includes('rule') || topicLower.includes('စည်း') || topicLower.includes('သတ်မှတ်')) {
+    return ROUTE_RULES;
+  }
+  
+  // Return general help
+  return `YBS OFFLINE GUIDE
+
+Available Topics:
+- Fare & Payment (ask about prices, cards)
+- Bus Hours (operating times)
+- Lost Stop (what to do if you miss your stop)
+- Transfers (changing buses)
+- Direction (which bus to take)
+- Crowds (avoiding busy buses)
+
+Quick Tips:
+1. Tell driver your destination before boarding
+2. "ဘယ်သွားလဲ?" = Where is this going?
+3. "နောက်တစ်မှတ်ပါ" = Next stop please
+4. Have exact change ready
+5. Stand at the front of the queue`;
+};
+
+export const isOfflineSuggestionAvailable = (): boolean => {
+  return YBS_ROUTES.length > 0;
+};
+
+export const getOfflineCapabilities = (): string[] => {
+  return [
+    'Route suggestions (direct routes)',
+    'Fare information',
+    'Operating hours',
+    'Transfer guidance',
+    'What to do if you miss your stop',
+    'Direction finding',
+    'Crowd avoidance tips',
+    'YBS Card information'
+  ];
+};
+</parameter>

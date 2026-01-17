@@ -1,4 +1,5 @@
 import { YBS_ROUTES } from "../data/busData";
+import { getLearningContext } from "./learningService";
 
 declare const puter: any;
 
@@ -57,6 +58,7 @@ export const getWeatherData = async (): Promise<string> => {
 
 export const getAIRouteSuggestion = async (from: string, to: string) => {
   const context = getBusDataContext();
+  const learningContext = getLearningContext();
   const prompt = `${SYSTEM_PROMPT}
 
 အသုံးပြုသူ၏ ခရီးစဉ်ကို အောက်ပါအချက်အလက်အပေါ် မူတည်ပြီး
@@ -67,6 +69,9 @@ YBS ဘတ်စ်လမ်းကြောင်း အကြံပြုပါ
 - ဦးတည်ရာ: ${to}
 - ဘတ်စ်ပြောင်းရမလား / မပြောင်းရလား
 - ဘယ်မှတ်တိုင်မှာ စီး / ဆင်းရမလဲ
+
+အသုံးပြုသူ၏ လေ့လာထားသော အချက်အလက်များ (အကြံပြုချက်ကို ပိုကောင်းအောင် အသုံးပြုပါ) –
+${learningContext}
 
 အဖြေကို အောက်ပါပုံစံနဲ့ ပြန်ပါ –
 1 ဘယ်ဘတ်စ်ကို စီးရမလဲ

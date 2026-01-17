@@ -15,19 +15,9 @@ import {
   clearCache,
   getCacheSize
 } from './services/offlineService';
-import {
-  getCardBalance,
-  setCardBalance,
-  updateCardBalance,
-  getTransactions,
-  getCardSettings,
-  updateCardSettings,
-  isBalanceLow,
-  getBalanceInsights,
-} from './services/cardService';
+import { recordUserChoice, recordSkippedSuggestion } from './services/learningService';
 // NFC feature removed
 import BusMap from './components/BusMap';
-import CardGuide from './components/CardGuide';
 
 const ITEMS_PER_PAGE = 12;
 
@@ -226,7 +216,6 @@ const App: React.FC = () => {
   const [cachedRoutes, setCachedRoutes] = useState<BusRoute[] | null>(null);
   const [cachedStops, setCachedStops] = useState<any[] | null>(null);
   const [cachedDiscovery, setCachedDiscovery] = useState<string | null>(null);
-  const [lowBalanceAlert, setLowBalanceAlert] = useState<{ isLow: boolean; message: string } | null>(null);
 
   // Monitor online/offline status
   useEffect(() => {
@@ -279,7 +268,6 @@ const App: React.FC = () => {
     { id: ViewMode.EXPLORE, label: 'Explore', labelMm: 'လေ့လာရန်', icon: 'M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 002 2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
     { id: ViewMode.ROUTE_FINDER, label: 'Finder', labelMm: 'ရှာဖွေရန်', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
     { id: ViewMode.BUS_LIST, label: 'Lines', labelMm: 'လိုင်းများ', icon: 'M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z' },
-    { id: ViewMode.CARD_COMPANION, label: 'Card', labelMm: 'ကတ်', icon: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z' },
     { id: ViewMode.AI_ASSISTANT, label: 'Assistant', labelMm: 'အေအိုင်', icon: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z' },
     { id: ViewMode.FEEDBACK, label: 'Feedback', labelMm: 'အကြံပြုချက်', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z' },
   ];
@@ -354,38 +342,7 @@ const App: React.FC = () => {
           )}
         </header>
 
-        {/* Low Balance Banner */}
-        {lowBalanceAlert && lowBalanceAlert.isLow && (
-          <div className="glass border-b border-white/5 p-4 bg-gradient-to-r from-orange-500/10 to-red-500/10 border-l-4 border-l-orange-500">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <svg className="w-6 h-6 text-orange-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <div>
-                  <div className="font-bold text-orange-300 text-sm">Low Balance Alert</div>
-                  <div className="text-xs text-slate-300 myanmar-font">{lowBalanceAlert.message}</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setActiveView(ViewMode.CARD_COMPANION)}
-                  className="px-4 py-2 bg-orange-500 text-white rounded-xl font-bold text-sm hover:bg-orange-600 transition-colors whitespace-nowrap"
-                >
-                  Top Up
-                </button>
-                <button
-                  onClick={() => setLowBalanceAlert({ isLow: false, message: '' })}
-                  className="p-2 text-slate-400 hover:text-white transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+
 
         <main className="flex-1 overflow-y-auto custom-scrollbar bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950 pb-24 lg:pb-0">
           <div className="p-4 md:p-10 max-w-6xl mx-auto">
@@ -599,6 +556,7 @@ const RouteFinder: React.FC<{onTripSearched?: (trip: {from: string, to: string})
   const [aiResult, setAiResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedBus, setSelectedBus] = useState<BusRoute | null>(null);
+  const [lastSearch, setLastSearch] = useState<{from: string, to: string} | null>(null);
 
   useEffect(() => {
     // First check if a saved trip was requested to prefill
@@ -619,6 +577,15 @@ const RouteFinder: React.FC<{onTripSearched?: (trip: {from: string, to: string})
       localStorage.removeItem('ybs_nearest_from');
     }
   }, []);
+
+  // Record skipped suggestions when component unmounts or search changes
+  useEffect(() => {
+    return () => {
+      if (lastSearch && aiResult && aiResult !== "AI suggestions unavailable in offline mode. / အော့ဖ်လိုင်းအခြေအနေတွင် AI အကြံပြုချက်များ မရရှိနိုင်ပါ။") {
+        recordSkippedSuggestion(lastSearch.from, lastSearch.to, aiResult);
+      }
+    };
+  }, [lastSearch, aiResult]);
 
   const handleSearch = async () => {
     if (!from || !to) return;
@@ -708,7 +675,17 @@ const RouteFinder: React.FC<{onTripSearched?: (trip: {from: string, to: string})
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={() => setSelectedBus(bus)} className="text-yellow-400 p-4 rounded-2xl bg-white/5 hover:bg-yellow-400 hover:text-slate-950 transition-all"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg></button>
+                      <button
+                        onClick={() => {
+                          recordUserChoice(from, to, bus.id.toString(), aiResult);
+                          setSelectedBus(bus);
+                        }}
+                        className="text-yellow-400 p-4 rounded-2xl bg-white/5 hover:bg-yellow-400 hover:text-slate-950 transition-all"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
+                      </button>
                       <button onClick={() => onShowOnMap?.(bus.id)} className="p-3 bg-white/5 rounded-2xl text-slate-300 hover:text-yellow-400 transition-colors border border-white/5">Show on map</button>
                     </div>
                   </div>
