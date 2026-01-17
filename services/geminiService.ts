@@ -1,4 +1,4 @@
-import { YBS_ROUTES } from "../data/busData";
+import { YBS_ROUTES } from "../public/data/busData";
 
 declare const puter: any;
 

@@ -1,5 +1,5 @@
 
-import { BusRoute } from '../types';
+import { BusRoute } from '../../types';
 
 export const YBS_ROUTES: BusRoute[] = [
   { id: "1", color: "#2b6cb0", stops: [

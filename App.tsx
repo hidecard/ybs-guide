@@ -1,8 +1,8 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { ViewMode, BusRoute } from './types';
-import { YBS_ROUTES } from './data/busData';
-import { getAIRouteSuggestion, chatWithAI, getDiscoveryInfo, cleanText } from './services/geminiService';
+import { YBS_ROUTES } from './public/data/busData';
+import { chatWithAI, getDiscoveryInfo, cleanText } from './services/geminiService';
 import { submitFeedback, fetchFeedback } from './services/supabaseService';
 import {
   isOnline,
@@ -539,7 +539,6 @@ const RouteFinder: React.FC<{onTripSearched?: (trip: {from: string, to: string})
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [results, setResults] = useState<BusRoute[]>([]);
-  const [aiResult, setAiResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedBus, setSelectedBus] = useState<BusRoute | null>(null);
 
@@ -566,7 +565,6 @@ const RouteFinder: React.FC<{onTripSearched?: (trip: {from: string, to: string})
   const handleSearch = async () => {
     if (!from || !to) return;
     setLoading(true);
-    setAiResult(null);
     onTripSearched?.({from, to});
 
     const f = from.toLowerCase().trim();
@@ -581,14 +579,6 @@ const RouteFinder: React.FC<{onTripSearched?: (trip: {from: string, to: string})
       return fromIndex !== -1 && toIndex !== -1 && fromIndex < toIndex;
     });
     setResults(direct);
-
-    // Only get AI suggestions if online
-    if (!isOfflineMode) {
-      const aiSuggestion = await getAIRouteSuggestion(from, to);
-      setAiResult(aiSuggestion);
-    } else {
-      setAiResult("AI suggestions unavailable in offline mode. / အော့ဖ်လိုင်းအခြေအနေတွင် AI အကြံပြုချက်များ မရရှိနိုင်ပါ။");
-    }
     setLoading(false);
   };
 
@@ -624,7 +614,7 @@ const RouteFinder: React.FC<{onTripSearched?: (trip: {from: string, to: string})
               </div>
             </div>
             <button onClick={handleSearch} disabled={loading} className="w-full bg-yellow-400 text-slate-950 py-5 rounded-3xl font-black uppercase tracking-widest text-sm hover:brightness-110 active:scale-95 transition-all shadow-xl shadow-yellow-400/20">
-              {loading ? 'Analyzing Data...' : 'Calculate Path / လမ်းကြောင်းရှာရန်'}
+              {loading ? 'Searching Routes...' : 'Calculate Path / လမ်းကြောင်းရှာရန်'}
             </button>
           </div>
         </div>
@@ -632,14 +622,8 @@ const RouteFinder: React.FC<{onTripSearched?: (trip: {from: string, to: string})
         <div className="xl:col-span-3 space-y-6">
           {loading ? (
              <div className="space-y-4">{[1,2,3].map(i => <div key={i} className="h-32 glass rounded-3xl loading-shimmer"></div>)}</div>
-          ) : results.length > 0 || aiResult ? (
+          ) : results.length > 0 ? (
             <div className="space-y-6">
-              {aiResult && (
-                <div className="glass-bright p-8 rounded-[40px] border border-white/10 space-y-6 relative bg-slate-900/40">
-                  <div className="flex items-center gap-3"><div className="h-0.5 w-10 bg-yellow-400"></div><span className="text-[10px] font-black tracking-widest uppercase text-yellow-400">AI Telemetry / အေအိုင် အကြံပြုချက်</span></div>
-                  <div className="text-lg myanmar-font font-semibold text-slate-200 whitespace-pre-wrap leading-relaxed">{aiResult}</div>
-                </div>
-              )}
               <div className="grid grid-cols-1 gap-4">
                 {results.map(bus => (
                   <div key={bus.id} className="glass p-6 rounded-3xl group hover:border-yellow-400/40 transition-all flex items-center justify-between bg-white/5">
