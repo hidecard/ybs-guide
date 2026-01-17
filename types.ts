@@ -27,5 +27,29 @@ export enum ViewMode {
   AI_ASSISTANT = 'AI_ASSISTANT',
   EXPLORE = 'EXPLORE',
   PLACES = 'PLACES',
-  FEEDBACK = 'FEEDBACK'
+  FEEDBACK = 'FEEDBACK',
+  CARD_COMPANION = 'CARD_COMPANION'
+}
+
+export interface CardBalance {
+  id: string;
+  balance: number;
+  lastUpdated: Date;
+  currency: string;
+}
+
+export interface CardTransaction {
+  id: string;
+  amount: number;
+  type: 'deduct' | 'topup';
+  description: string;
+  timestamp: Date;
+  balanceAfter: number;
+}
+
+export interface CardSettings {
+  id: string;
+  reminderThreshold: number; // Minimum balance before warning
+  averageDailySpending: number;
+  autoCalculateAverage: boolean;
 }

@@ -15,7 +15,19 @@ import {
   clearCache,
   getCacheSize
 } from './services/offlineService';
+import {
+  getCardBalance,
+  setCardBalance,
+  updateCardBalance,
+  getTransactions,
+  getCardSettings,
+  updateCardSettings,
+  isBalanceLow,
+  getBalanceInsights,
+} from './services/cardService';
+import { isNFCSupported, readNFCCard, mockNFCRead } from './services/nfcService';
 import BusMap from './components/BusMap';
+import CardGuide from './components/CardGuide';
 
 const ITEMS_PER_PAGE = 12;
 
@@ -214,6 +226,7 @@ const App: React.FC = () => {
   const [cachedRoutes, setCachedRoutes] = useState<BusRoute[] | null>(null);
   const [cachedStops, setCachedStops] = useState<any[] | null>(null);
   const [cachedDiscovery, setCachedDiscovery] = useState<string | null>(null);
+  const [lowBalanceAlert, setLowBalanceAlert] = useState<{ isLow: boolean; message: string } | null>(null);
 
   // Monitor online/offline status
   useEffect(() => {
@@ -250,12 +263,23 @@ const App: React.FC = () => {
     }
   }, [isOfflineMode]);
 
+  // Check for low balance
+  useEffect(() => {
+    const checkBalance = async () => {
+      const alert = await isBalanceLow();
+      setLowBalanceAlert(alert);
+    };
+    checkBalance();
+    // Check every 30 minutes
+    const interval = setInterval(checkBalance, 30 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   const tabs = [
     { id: ViewMode.EXPLORE, label: 'Explore', labelMm: 'လေ့လာရန်', icon: 'M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 002 2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
     { id: ViewMode.ROUTE_FINDER, label: 'Finder', labelMm: 'ရှာဖွေရန်', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
     { id: ViewMode.BUS_LIST, label: 'Lines', labelMm: 'လိုင်းများ', icon: 'M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z' },
-
-    // Which Bus view removed
+    { id: ViewMode.CARD_COMPANION, label: 'Card', labelMm: 'ကတ်', icon: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z' },
     { id: ViewMode.AI_ASSISTANT, label: 'Assistant', labelMm: 'အေအိုင်', icon: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z' },
     { id: ViewMode.FEEDBACK, label: 'Feedback', labelMm: 'အကြံပြုချက်', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z' },
   ];
@@ -277,7 +301,7 @@ const App: React.FC = () => {
       case ViewMode.EXPLORE: return <ExploreDashboard savedTrips={savedTrips} onSelectSaved={(t) => { localStorage.setItem('ybs_prefill_trip', JSON.stringify(t)); setActiveView(ViewMode.ROUTE_FINDER); }} onShowOnMap={showOnMap} onUseStop={(stopName: string) => { localStorage.setItem('ybs_nearest_from', stopName); setActiveView(ViewMode.ROUTE_FINDER); }} />;
       case ViewMode.BUS_LIST: return <BusList onShowOnMap={showOnMap} cachedRoutes={cachedRoutes} isOfflineMode={isOfflineMode} />;
       case ViewMode.ROUTE_FINDER: return <RouteFinder onTripSearched={handleSaveTrip} onShowOnMap={showOnMap} cachedRoutes={cachedRoutes} isOfflineMode={isOfflineMode} />;
-
+      case ViewMode.CARD_COMPANION: return <CardCompanion onBalanceUpdate={() => { isBalanceLow().then(setLowBalanceAlert); }} />;
       case ViewMode.AI_ASSISTANT: return <AIAssistant />;
       case ViewMode.FEEDBACK: return <Feedback />;
       default: return <ExploreDashboard savedTrips={savedTrips} onSelectSaved={() => {}} onShowOnMap={showOnMap} onUseStop={() => {}} cachedDiscovery={cachedDiscovery} isOfflineMode={isOfflineMode} />;
@@ -329,6 +353,39 @@ const App: React.FC = () => {
             </div>
           )}
         </header>
+
+        {/* Low Balance Banner */}
+        {lowBalanceAlert && lowBalanceAlert.isLow && (
+          <div className="glass border-b border-white/5 p-4 bg-gradient-to-r from-orange-500/10 to-red-500/10 border-l-4 border-l-orange-500">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <svg className="w-6 h-6 text-orange-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div>
+                  <div className="font-bold text-orange-300 text-sm">Low Balance Alert</div>
+                  <div className="text-xs text-slate-300 myanmar-font">{lowBalanceAlert.message}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setActiveView(ViewMode.CARD_COMPANION)}
+                  className="px-4 py-2 bg-orange-500 text-white rounded-xl font-bold text-sm hover:bg-orange-600 transition-colors whitespace-nowrap"
+                >
+                  Top Up
+                </button>
+                <button
+                  onClick={() => setLowBalanceAlert({ isLow: false, message: '' })}
+                  className="p-2 text-slate-400 hover:text-white transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <main className="flex-1 overflow-y-auto custom-scrollbar bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950 pb-24 lg:pb-0">
           <div className="p-4 md:p-10 max-w-6xl mx-auto">
@@ -991,6 +1048,360 @@ const Feedback: React.FC = () => {
   );
 };
 
+const CardCompanion: React.FC<{ onBalanceUpdate: () => void }> = ({ onBalanceUpdate }) => {
+  const [balance, setBalance] = useState<number | null>(null);
+  const [currency, setCurrency] = useState('MMK');
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [settings, setSettings] = useState<any>(null);
+  const [insights, setInsights] = useState<any>(null);
+  const [showGuide, setShowGuide] = useState(false);
+  
+  // Form states
+  const [inputAmount, setInputAmount] = useState('');
+  const [inputType, setInputType] = useState<'topup' | 'deduct'>('deduct');
+  const [inputDescription, setInputDescription] = useState('');
+  const [reminderThreshold, setReminderThreshold] = useState(1000);
+  const [nfcReading, setNfcReading] = useState(false);
+  const [nfcMessage, setNfcMessage] = useState('');
 
+  const loadData = async () => {
+    setLoading(true);
+    const bal = await getCardBalance();
+    setBalance(bal?.balance || null);
+    setCurrency(bal?.currency || 'MMK');
+    
+    const txs = await getTransactions(10);
+    setTransactions(txs);
+    
+    const cfg = await getCardSettings();
+    setSettings(cfg);
+    setReminderThreshold(cfg.reminderThreshold);
+    
+    const ins = await getBalanceInsights();
+    setInsights(ins);
+    
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const handleSetBalance = async () => {
+    const amount = parseFloat(inputAmount);
+    if (isNaN(amount) || amount < 0) return;
+    
+    try {
+      await setCardBalance(amount, currency);
+      setInputAmount('');
+      await loadData();
+      onBalanceUpdate();
+    } catch (error) {
+      alert('Failed to set balance');
+    }
+  };
+
+  const handleTransaction = async () => {
+    const amount = parseFloat(inputAmount);
+    if (isNaN(amount) || amount <= 0) return;
+    if (!inputDescription) return;
+    
+    try {
+      await updateCardBalance(amount, inputType, inputDescription);
+      setInputAmount('');
+      setInputDescription('');
+      await loadData();
+      onBalanceUpdate();
+    } catch (error: any) {
+      alert(error.message || 'Failed to update balance');
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    await updateCardSettings({ reminderThreshold });
+    await loadData();
+    onBalanceUpdate();
+  };
+
+  const handleNFCRead = async () => {
+    setNfcReading(true);
+    setNfcMessage('Reading NFC card...');
+    
+    const result = await readNFCCard();
+    
+    if (result.success && result.balance !== undefined) {
+      setNfcMessage(`Card read successfully! Balance: ${result.balance} MMK`);
+      await setCardBalance(result.balance, 'MMK');
+      await loadData();
+      onBalanceUpdate();
+      setTimeout(() => setNfcMessage(''), 5000);
+    } else {
+      setNfcMessage(result.error || 'Failed to read card');
+      setTimeout(() => setNfcMessage(''), 5000);
+    }
+    
+    setNfcReading(false);
+  };
+
+  const quickAmounts = [200, 300, 400, 500, 1000, 3000, 5000];
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-8 animate-fadeIn">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-4xl font-black tracking-tight uppercase leading-none">YBS Card <span className="text-yellow-400">Companion</span></h2>
+          <p className="myanmar-font text-2xl font-bold text-slate-300 mt-1">ကတ် စီမံခန့်ခွဲမှု</p>
+        </div>
+        <button
+          onClick={() => setShowGuide(true)}
+          className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-slate-300 hover:bg-white/10 transition-colors"
+        >
+          📖 Guide
+        </button>
+      </div>
+
+      {showGuide && <CardGuide onClose={() => setShowGuide(false)} />}
+
+      {/* Balance Card */}
+      <div className="glass p-8 rounded-[40px] border border-white/10 relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-12 opacity-5">
+          <svg className="w-48 h-48 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+          </svg>
+        </div>
+        
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-6">
+            <div className="text-sm font-bold text-slate-400 uppercase tracking-widest">Current Balance / လက်ကျန်ငွေ</div>
+            {balance !== null && (
+              <div className="text-xs text-slate-500">
+                Updated: {new Date().toLocaleDateString()}
+              </div>
+            )}
+          </div>
+          
+          {balance !== null ? (
+            <div className="space-y-6">
+              <div className="flex items-baseline gap-3">
+                <span className="text-6xl font-black text-yellow-400">{balance.toLocaleString()}</span>
+                <span className="text-3xl font-bold text-slate-400">{currency}</span>
+              </div>
+              
+              {insights && insights.avgDailySpending > 0 && (
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-400">Avg Daily:</span>
+                    <span className="font-bold text-white">{Math.round(insights.avgDailySpending)} {currency}</span>
+                  </div>
+                  <div className="w-px h-4 bg-white/20"></div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-400">Days Left:</span>
+                    <span className="font-bold text-white">{Math.floor(balance / insights.avgDailySpending)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-slate-500 text-lg font-bold">No balance set. Use the form below to set your initial balance.</div>
+          )}
+        </div>
+      </div>
+
+      {/* Quick Actions & NFC */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Manual Input */}
+        <div className="glass p-6 rounded-[32px] border border-white/10 space-y-4">
+          <h3 className="text-sm font-black uppercase tracking-widest text-yellow-400">Update Balance / ငွေပြောင်းလဲရန်</h3>
+          
+          <div className="space-y-4">
+            {balance === null ? (
+              <div className="space-y-3">
+                <input
+                  type="number"
+                  placeholder="Enter initial balance"
+                  className="w-full bg-white/5 border border-white/10 px-4 py-3 rounded-xl text-white font-bold outline-none focus:border-yellow-400 transition-colors"
+                  value={inputAmount}
+                  onChange={(e) => setInputAmount(e.target.value)}
+                />
+                <button
+                  onClick={handleSetBalance}
+                  className="w-full py-3 bg-yellow-400 text-slate-950 rounded-xl font-black uppercase text-sm hover:brightness-110 transition-all"
+                >
+                  Set Balance
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setInputType('deduct')}
+                    className={`flex-1 py-2 rounded-xl font-bold text-sm transition-all ${inputType === 'deduct' ? 'bg-red-500 text-white' : 'bg-white/5 text-slate-400'}`}
+                  >
+                    Deduct
+                  </button>
+                  <button
+                    onClick={() => setInputType('topup')}
+                    className={`flex-1 py-2 rounded-xl font-bold text-sm transition-all ${inputType === 'topup' ? 'bg-green-500 text-white' : 'bg-white/5 text-slate-400'}`}
+                  >
+                    Top Up
+                  </button>
+                </div>
+                
+                <input
+                  type="number"
+                  placeholder="Amount"
+                  className="w-full bg-white/5 border border-white/10 px-4 py-3 rounded-xl text-white font-bold outline-none focus:border-yellow-400 transition-colors"
+                  value={inputAmount}
+                  onChange={(e) => setInputAmount(e.target.value)}
+                />
+                
+                <input
+                  type="text"
+                  placeholder="Description (e.g. Bus fare, Top up)"
+                  className="w-full bg-white/5 border border-white/10 px-4 py-3 rounded-xl text-white font-bold outline-none focus:border-yellow-400 transition-colors"
+                  value={inputDescription}
+                  onChange={(e) => setInputDescription(e.target.value)}
+                />
+                
+                {/* Quick Amount Buttons */}
+                <div className="flex flex-wrap gap-2">
+                  {quickAmounts.map(amt => (
+                    <button
+                      key={amt}
+                      onClick={() => setInputAmount(String(amt))}
+                      className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-xs font-bold text-slate-300 hover:bg-yellow-400 hover:text-slate-950 transition-colors"
+                    >
+                      {amt}
+                    </button>
+                  ))}
+                </div>
+                
+                <button
+                  onClick={handleTransaction}
+                  className="w-full py-3 bg-yellow-400 text-slate-950 rounded-xl font-black uppercase text-sm hover:brightness-110 transition-all"
+                >
+                  {inputType === 'topup' ? 'Add Funds' : 'Deduct'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* NFC Section */}
+        <div className="glass p-6 rounded-[32px] border border-white/10 space-y-4">
+          <h3 className="text-sm font-black uppercase tracking-widest text-yellow-400">NFC Card Reader / NFC ဖတ်ရန်</h3>
+          
+          {isNFCSupported() ? (
+            <div className="space-y-4">
+              <p className="text-sm text-slate-300">Tap your YBS card to read the balance using NFC.</p>
+              <button
+                onClick={handleNFCRead}
+                disabled={nfcReading}
+                className="w-full py-8 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-black uppercase text-sm hover:brightness-110 transition-all disabled:opacity-50 flex items-center justify-center gap-3"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
+                </svg>
+                {nfcReading ? 'Reading...' : 'Scan Card'}
+              </button>
+              {nfcMessage && (
+                <div className={`p-3 rounded-xl text-sm font-bold ${nfcMessage.includes('success') ? 'bg-green-500/20 text-green-400' : 'bg-orange-500/20 text-orange-400'}`}>
+                  {nfcMessage}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="glass-card p-4 rounded-xl border border-white/10 bg-slate-900/40">
+              <p className="text-sm text-slate-400 mb-2">NFC not supported on this device/browser.</p>
+              <p className="text-xs text-slate-500">Use manual input or try Chrome/Edge on Android with HTTPS.</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Transaction History */}
+      <div className="glass p-6 rounded-[32px] border border-white/10 space-y-4">
+        <h3 className="text-sm font-black uppercase tracking-widest text-yellow-400">Recent Transactions / မှတ်တမ်းများ</h3>
+        
+        {transactions.length > 0 ? (
+          <div className="space-y-2">
+            {transactions.map((tx, i) => (
+              <div key={tx.id} className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5 hover:bg-white/10 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${tx.type === 'topup' ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
+                    <svg className={`w-5 h-5 ${tx.type === 'topup' ? 'text-green-400' : 'text-red-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={tx.type === 'topup' ? 'M12 4v16m8-8H4' : 'M20 12H4'} />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="font-bold text-white text-sm">{tx.description}</div>
+                    <div className="text-xs text-slate-500">{new Date(tx.timestamp).toLocaleString()}</div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className={`font-black ${tx.type === 'topup' ? 'text-green-400' : 'text-red-400'}`}>
+                    {tx.type === 'topup' ? '+' : '-'}{tx.amount} {currency}
+                  </div>
+                  <div className="text-xs text-slate-500">Bal: {tx.balanceAfter}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-slate-500">No transactions yet</div>
+        )}
+      </div>
+
+      {/* Settings */}
+      <div className="glass p-6 rounded-[32px] border border-white/10 space-y-4">
+        <h3 className="text-sm font-black uppercase tracking-widest text-yellow-400">Settings / ဆက်တင်များ</h3>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm text-slate-400 mb-2">Low Balance Reminder Threshold</label>
+            <div className="flex gap-3">
+              <input
+                type="number"
+                className="flex-1 bg-white/5 border border-white/10 px-4 py-3 rounded-xl text-white font-bold outline-none focus:border-yellow-400 transition-colors"
+                value={reminderThreshold}
+                onChange={(e) => setReminderThreshold(parseInt(e.target.value) || 0)}
+              />
+              <button
+                onClick={handleSaveSettings}
+                className="px-6 py-3 bg-yellow-400 text-slate-950 rounded-xl font-black uppercase text-sm hover:brightness-110 transition-all"
+              >
+                Save
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">You'll get a reminder when balance falls below this amount.</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Insights */}
+      {insights && insights.transactionCount > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="glass p-4 rounded-2xl border border-white/10 text-center">
+            <div className="text-2xl font-black text-white">{insights.totalSpent}</div>
+            <div className="text-xs text-slate-400 mt-1">Total Spent</div>
+          </div>
+          <div className="glass p-4 rounded-2xl border border-white/10 text-center">
+            <div className="text-2xl font-black text-white">{insights.totalTopups}</div>
+            <div className="text-xs text-slate-400 mt-1">Total Top-ups</div>
+          </div>
+          <div className="glass p-4 rounded-2xl border border-white/10 text-center">
+            <div className="text-2xl font-black text-white">{insights.transactionCount}</div>
+            <div className="text-xs text-slate-400 mt-1">Transactions</div>
+          </div>
+          <div className="glass p-4 rounded-2xl border border-white/10 text-center">
+            <div className="text-2xl font-black text-white">{Math.round(insights.avgDailySpending)}</div>
+            <div className="text-xs text-slate-400 mt-1">Avg Daily</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default App;
