@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { ViewMode, BusRoute, Notification } from './types';
+import { ViewMode, BusRoute, Notification, TransferResult } from './types';
 import { YBS_ROUTES } from './public/data/busData';
 import { chatWithAI, getDiscoveryInfo, cleanText } from './services/geminiService';
 import { submitFeedback, fetchFeedback, fetchNotifications } from './services/supabaseService';
@@ -596,23 +596,74 @@ const RouteFinder: React.FC<{onTripSearched?: (trip: {from: string, to: string})
     }
   }, []);
 
+  const normalizeText = (text: string) => {
+    return text.toLowerCase().trim().replace(/\s+/g, ' ');
+  };
+
+  const findStopIndex = (stops: string[], searchTerm: string) => {
+    const normalizedSearch = normalizeText(searchTerm);
+    return stops.findIndex(stop => {
+      const normalizedStop = normalizeText(stop);
+      return normalizedStop.includes(normalizedSearch) ||
+             normalizedSearch.includes(normalizedStop) ||
+             normalizedStop.split(' ').some(word => normalizedSearch.includes(word)) ||
+             normalizedSearch.split(' ').some(word => normalizedStop.includes(word));
+    });
+  };
+
   const handleSearch = async () => {
     if (!from || !to) return;
     setLoading(true);
     onTripSearched?.({from, to});
 
-    const f = from.toLowerCase().trim();
-    const t = to.toLowerCase().trim();
+    const f = normalizeText(from);
+    const t = normalizeText(to);
 
     // Use cached routes if offline, otherwise use live data
     const routesToSearch = (isOfflineMode && cachedRoutes) ? cachedRoutes : YBS_ROUTES;
 
     const direct = routesToSearch.filter(route => {
-      const fromIndex = route.stops.findIndex(s => s.toLowerCase().includes(f));
-      const toIndex = route.stops.findIndex(s => s.toLowerCase().includes(t));
+      const fromIndex = findStopIndex(route.stops, f);
+      const toIndex = findStopIndex(route.stops, t);
       return fromIndex !== -1 && toIndex !== -1 && fromIndex < toIndex;
     });
-    setResults(direct);
+
+    // Find transfer routes
+    const transfers: TransferResult[] = [];
+    for (const bus1 of routesToSearch) {
+      for (const bus2 of routesToSearch) {
+        if (bus1.id === bus2.id) continue;
+
+        const fromIndex1 = findStopIndex(bus1.stops, f);
+        const toIndex2 = findStopIndex(bus2.stops, t);
+
+        // Check for transfer: bus1 has 'from', bus2 has 'to', and they share a common stop
+        if (fromIndex1 !== -1 && toIndex2 !== -1) {
+          const commonStops = bus1.stops.filter(stop1 =>
+            bus2.stops.some(stop2 => normalizeText(stop1) === normalizeText(stop2))
+          );
+          if (commonStops.length > 0) {
+            transfers.push({
+              firstBus: bus1.id,
+              secondBus: bus2.id,
+              transferStop: commonStops[0]
+            });
+          }
+        }
+      }
+    }
+
+    // Combine direct and transfer results
+    const allResults = [...direct];
+    transfers.forEach(transfer => {
+      const firstBus = routesToSearch.find(r => r.id === transfer.firstBus);
+      const secondBus = routesToSearch.find(r => r.id === transfer.secondBus);
+      if (firstBus && secondBus && !allResults.some(r => r.id === firstBus.id) && !allResults.some(r => r.id === secondBus.id)) {
+        allResults.push(firstBus, secondBus);
+      }
+    });
+
+    setResults(allResults);
     setLoading(false);
   };
 
