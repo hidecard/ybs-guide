@@ -280,7 +280,7 @@ const App: React.FC = () => {
 
   const renderContent = () => {
     switch (activeView) {
-      case ViewMode.EXPLORE: return <ExploreDashboard savedTrips={savedTrips} onSelectSaved={(t) => { localStorage.setItem('ybs_prefill_trip', JSON.stringify(t)); setActiveView(ViewMode.ROUTE_FINDER); }} onShowOnMap={showOnMap} onUseStop={(stopName: string) => { localStorage.setItem('ybs_nearest_from', stopName); setActiveView(ViewMode.ROUTE_FINDER); }} />;
+      case ViewMode.EXPLORE: return <ExploreDashboard savedTrips={savedTrips} onSelectSaved={(t) => { localStorage.setItem('ybs_prefill_trip', JSON.stringify(t)); setActiveView(ViewMode.ROUTE_FINDER); }} onShowOnMap={showOnMap} onUseStop={(stopName: string) => { localStorage.setItem('ybs_nearest_from', stopName); setActiveView(ViewMode.ROUTE_FINDER); }} notifications={notifications} />;
       case ViewMode.BUS_LIST: return <BusList onShowOnMap={showOnMap} cachedRoutes={cachedRoutes} isOfflineMode={isOfflineMode} />;
       case ViewMode.ROUTE_FINDER: return <RouteFinder onTripSearched={handleSaveTrip} onShowOnMap={showOnMap} cachedRoutes={cachedRoutes} isOfflineMode={isOfflineMode} />;
 
@@ -337,19 +337,6 @@ const App: React.FC = () => {
         </header>
 
         <main className="flex-1 overflow-y-auto custom-scrollbar bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950 pb-24 lg:pb-0">
-          {/* Notifications under nav */}
-          {notifications.length > 0 && (
-            <div className="px-4 md:px-10 max-w-6xl mx-auto pt-4">
-              <div className="space-y-4">
-                {notifications.slice(0, 3).map(notif => (
-                  <div key={notif.id} className="glass p-4 rounded-2xl border border-yellow-400/20 bg-yellow-400/5">
-                    <h4 className="font-bold text-yellow-400 text-sm uppercase tracking-widest">{notif.title}</h4>
-                    <p className="text-slate-300 text-sm myanmar-font mt-1">{notif.description}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
           <div className="p-4 md:p-10 max-w-6xl mx-auto">
             {renderContent()}
           </div>
@@ -369,7 +356,7 @@ const App: React.FC = () => {
   );
 };
 
-const ExploreDashboard: React.FC<{savedTrips: {from: string, to: string}[], onSelectSaved: (trip: {from: string, to: string}) => void; onShowOnMap?: (id:string) => void; onUseStop?: (stopName:string) => void; cachedDiscovery?: string | null; isOfflineMode?: boolean}> = ({savedTrips, onSelectSaved, onShowOnMap, onUseStop, cachedDiscovery, isOfflineMode}) => {
+const ExploreDashboard: React.FC<{savedTrips: {from: string, to: string}[], onSelectSaved: (trip: {from: string, to: string}) => void; onShowOnMap?: (id:string) => void; onUseStop?: (stopName:string) => void; cachedDiscovery?: string | null; isOfflineMode?: boolean; notifications?: Notification[]}> = ({savedTrips, onSelectSaved, onShowOnMap, onUseStop, cachedDiscovery, isOfflineMode, notifications}) => {
   const [discovery, setDiscovery] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -956,6 +943,14 @@ const Feedback: React.FC = () => {
               <div className="flex justify-between items-center py-2 border-b border-white/5">
                 <span className="text-sm text-slate-400">Platform</span>
                 <span className="text-sm font-bold text-white">Web App</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-white/5">
+                <span className="text-sm text-slate-400">Telegram Channel</span>
+                <a href="https://t.me/ybsguide" target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-yellow-400 hover:text-yellow-300">@ybsguide</a>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-white/5">
+                <span className="text-sm text-slate-400">Telegram Bot</span>
+                <a href="https://t.me/ybsguide_bot" target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-yellow-400 hover:text-yellow-300">@ybsguide_bot</a>
               </div>
               <div className="flex justify-between items-center py-2 border-b border-white/5">
                 <span className="text-sm text-slate-400">Technology</span>
