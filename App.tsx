@@ -502,6 +502,34 @@ const ExploreDashboard: React.FC<{savedTrips: {from: string, to: string}[], onSe
           )}
         </div>
 
+        {/* Notifications Section */}
+        {notifications && notifications.length > 0 && (
+          <div className="space-y-4">
+            <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 ml-4 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.6)]"></span>
+              Notifications / အသိပေးချက်များ
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {notifications.slice(0, 4).map((notification, i) => (
+                <div key={notification.id} className="glass p-6 rounded-[32px] bg-red-500/10 border border-red-500/20">
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 bg-red-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-white text-sm mb-2">{notification.title}</h4>
+                      <p className="text-xs text-slate-300 myanmar-font leading-relaxed">{notification.description}</p>
+                      <p className="text-[10px] text-slate-500 mt-2">{new Date(notification.created_at).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Remini Section (History) */}
         <div className="space-y-4">
            <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 ml-4 flex items-center gap-2">
@@ -510,8 +538,8 @@ const ExploreDashboard: React.FC<{savedTrips: {from: string, to: string}[], onSe
            </h3>
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
              {savedTrips.length > 0 ? savedTrips.map((trip, i) => (
-               <button 
-                 key={i} 
+               <button
+                 key={i}
                  onClick={() => onSelectSaved(trip)}
                  className="glass p-6 rounded-[32px] hover:border-yellow-400/50 transition-all group flex items-center justify-between bg-white/5 border border-white/5"
                >
@@ -991,7 +1019,7 @@ const Feedback: React.FC = () => {
           {/* Contact & Links */}
           <div className="glass p-8 rounded-[40px] border border-white/10">
             <h4 className="text-lg font-black uppercase tracking-tight mb-6 text-yellow-400">Get In Touch / ဆက်သွယ်ရန်</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
               <div className="text-center space-y-3">
                 <div className="w-12 h-12 bg-yellow-400 rounded-xl flex items-center justify-center mx-auto">
                   <svg className="w-6 h-6 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
