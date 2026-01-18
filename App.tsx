@@ -979,7 +979,51 @@ const Feedback: React.FC = () => {
               </div>
               <div className="flex justify-between items-center py-2 border-b border-white/5">
                 <span className="text-sm text-slate-400">Role</span>
-                <span className="text-sm font-bold text-white">Developer</span>
+                <span className="text-sm font-bold text-white">Project Manager | Instructor</span>
+              </div>
+              <div className="flex justify-between items-center py-2">
+                <span className="text-sm text-slate-400">Location</span>
+                <span className="text-sm font-bold text-white">Yangon, Myanmar</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Contact & Links */}
+          <div className="glass p-8 rounded-[40px] border border-white/10">
+            <h4 className="text-lg font-black uppercase tracking-tight mb-6 text-yellow-400">Get In Touch / ဆက်သွယ်ရန်</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="text-center space-y-3">
+                <div className="w-12 h-12 bg-yellow-400 rounded-xl flex items-center justify-center mx-auto">
+                  <svg className="w-6 h-6 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white">Email</p>
+                  <p className="text-xs text-slate-400">arkaryan.info@gmail.com</p>
+                </div>
+              </div>
+              <div className="text-center space-y-3">
+                <div className="w-12 h-12 bg-yellow-400 rounded-xl flex items-center justify-center mx-auto">
+                  <svg className="w-6 h-6 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white">Website</p>
+                  <p className="text-xs text-slate-400">arkaryan.vercel.app</p>
+                </div>
+              </div>
+              <div className="text-center space-y-3">
+                <div className="w-12 h-12 bg-yellow-400 rounded-xl flex items-center justify-center mx-auto">
+                  <svg className="w-6 h-6 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white">Support</p>
+                  <p className="text-xs text-slate-400">24/7 Available</p>
+                </div>
               </div>
             </div>
           </div>
