@@ -19,6 +19,13 @@ export interface TransferResult {
   transferStop: string;
 }
 
+export interface Notification {
+  id: number;
+  title: string;
+  description: string;
+  created_at: string;
+}
+
 export enum ViewMode {
   BUS_LIST = 'BUS_LIST',
   ROUTE_FINDER = 'ROUTE_FINDER',

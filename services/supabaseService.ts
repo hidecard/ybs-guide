@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { Notification } from '../types'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -33,6 +34,19 @@ export async function fetchFeedback(): Promise<Feedback[]> {
     .order('created_at', { ascending: false })
   if (error) {
     console.error("Fetch failed:", error)
+    return []
+  }
+  return data || []
+}
+
+// Fetch notifications
+export async function fetchNotifications(): Promise<Notification[]> {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .order('created_at', { ascending: false })
+  if (error) {
+    console.error("Fetch notifications failed:", error)
     return []
   }
   return data || []

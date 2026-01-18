@@ -1,9 +1,9 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { ViewMode, BusRoute } from './types';
+import { ViewMode, BusRoute, Notification } from './types';
 import { YBS_ROUTES } from './public/data/busData';
 import { chatWithAI, getDiscoveryInfo, cleanText } from './services/geminiService';
-import { submitFeedback, fetchFeedback } from './services/supabaseService';
+import { submitFeedback, fetchFeedback, fetchNotifications } from './services/supabaseService';
 import {
   isOnline,
   cacheRoutes,
@@ -214,6 +214,7 @@ const App: React.FC = () => {
   const [cachedRoutes, setCachedRoutes] = useState<BusRoute[] | null>(null);
   const [cachedStops, setCachedStops] = useState<any[] | null>(null);
   const [cachedDiscovery, setCachedDiscovery] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   // Monitor online/offline status
   useEffect(() => {
@@ -246,6 +247,11 @@ const App: React.FC = () => {
           cacheDiscoveryInfo(info);
           setCachedDiscovery(info);
         }
+      });
+
+      // Fetch notifications
+      fetchNotifications().then(notifs => {
+        setNotifications(notifs);
       });
     }
   }, [isOfflineMode]);
@@ -331,6 +337,19 @@ const App: React.FC = () => {
         </header>
 
         <main className="flex-1 overflow-y-auto custom-scrollbar bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950 pb-24 lg:pb-0">
+          {/* Notifications under nav */}
+          {notifications.length > 0 && (
+            <div className="px-4 md:px-10 max-w-6xl mx-auto pt-4">
+              <div className="space-y-4">
+                {notifications.slice(0, 3).map(notif => (
+                  <div key={notif.id} className="glass p-4 rounded-2xl border border-yellow-400/20 bg-yellow-400/5">
+                    <h4 className="font-bold text-yellow-400 text-sm uppercase tracking-widest">{notif.title}</h4>
+                    <p className="text-slate-300 text-sm myanmar-font mt-1">{notif.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="p-4 md:p-10 max-w-6xl mx-auto">
             {renderContent()}
           </div>
