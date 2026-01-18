@@ -4,17 +4,7 @@ import { ViewMode, BusRoute, Notification, TransferResult } from './types';
 import { YBS_ROUTES } from './public/data/busData';
 import { chatWithAI, getDiscoveryInfo, cleanText } from './services/geminiService';
 import { submitFeedback, fetchFeedback, fetchNotifications } from './services/supabaseService';
-import {
-  isOnline,
-  cacheRoutes,
-  getCachedRoutes,
-  cacheStops,
-  getCachedStops,
-  cacheDiscoveryInfo,
-  getCachedDiscoveryInfo,
-  clearCache,
-  getCacheSize
-} from './services/offlineService';
+
 import BusMap from './components/BusMap';
 
 const ITEMS_PER_PAGE = 12;
@@ -210,51 +200,15 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('ybs_saved_trips');
     return saved ? JSON.parse(saved) : [];
   });
-  const [isOfflineMode, setIsOfflineMode] = useState<boolean>(!isOnline());
-  const [cachedRoutes, setCachedRoutes] = useState<BusRoute[] | null>(null);
-  const [cachedStops, setCachedStops] = useState<any[] | null>(null);
-  const [cachedDiscovery, setCachedDiscovery] = useState<string | null>(null);
+
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  // Monitor online/offline status
+  // Fetch notifications
   useEffect(() => {
-    const handleOnline = () => setIsOfflineMode(false);
-    const handleOffline = () => setIsOfflineMode(true);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
+    fetchNotifications().then(notifs => {
+      setNotifications(notifs);
+    });
   }, []);
-
-  // Cache data when online
-  useEffect(() => {
-    if (!isOfflineMode) {
-      // Cache routes
-      cacheRoutes(YBS_ROUTES);
-      setCachedRoutes(YBS_ROUTES);
-
-      // Cache stops (simplified, assuming stops are available)
-      // Note: In a real app, you'd fetch stops data here
-      // For now, we'll assume stops are cached separately
-
-      // Cache discovery info
-      getDiscoveryInfo().then(info => {
-        if (info) {
-          cacheDiscoveryInfo(info);
-          setCachedDiscovery(info);
-        }
-      });
-
-      // Fetch notifications
-      fetchNotifications().then(notifs => {
-        setNotifications(notifs);
-      });
-    }
-  }, [isOfflineMode]);
 
   const tabs = [
     { id: ViewMode.EXPLORE, label: 'Explore', labelMm: 'လေ့လာရန်', icon: 'M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 002 2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
@@ -281,12 +235,12 @@ const App: React.FC = () => {
   const renderContent = () => {
     switch (activeView) {
       case ViewMode.EXPLORE: return <ExploreDashboard savedTrips={savedTrips} onSelectSaved={(t) => { localStorage.setItem('ybs_prefill_trip', JSON.stringify(t)); setActiveView(ViewMode.ROUTE_FINDER); }} onShowOnMap={showOnMap} onUseStop={(stopName: string) => { localStorage.setItem('ybs_nearest_from', stopName); setActiveView(ViewMode.ROUTE_FINDER); }} notifications={notifications} />;
-      case ViewMode.BUS_LIST: return <BusList onShowOnMap={showOnMap} cachedRoutes={cachedRoutes} isOfflineMode={isOfflineMode} />;
-      case ViewMode.ROUTE_FINDER: return <RouteFinder onTripSearched={handleSaveTrip} onShowOnMap={showOnMap} cachedRoutes={cachedRoutes} isOfflineMode={isOfflineMode} />;
+      case ViewMode.BUS_LIST: return <BusList onShowOnMap={showOnMap} />;
+      case ViewMode.ROUTE_FINDER: return <RouteFinder onTripSearched={handleSaveTrip} onShowOnMap={showOnMap} />;
 
       case ViewMode.AI_ASSISTANT: return <AIAssistant />;
       case ViewMode.FEEDBACK: return <Feedback />;
-      default: return <ExploreDashboard savedTrips={savedTrips} onSelectSaved={() => {}} onShowOnMap={showOnMap} onUseStop={() => {}} cachedDiscovery={cachedDiscovery} isOfflineMode={isOfflineMode} />;
+      default: return <ExploreDashboard savedTrips={savedTrips} onSelectSaved={() => {}} onShowOnMap={showOnMap} onUseStop={() => {}} />;
     }
   };
 
@@ -304,12 +258,6 @@ const App: React.FC = () => {
             <span className="text-[10px] font-bold myanmar-font text-slate-500 uppercase tracking-widest leading-none mt-1">Intelligent Hub</span>
           </div>
         </div>
-        {isOfflineMode && (
-          <div className="flex items-center gap-2 px-3 py-2 bg-orange-500/20 border border-orange-500/30 rounded-xl">
-            <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
-            <span className="text-xs font-bold text-orange-400">Offline Mode</span>
-          </div>
-        )}
         <nav className="flex-1 space-y-2">
           {tabs.map(tab => (
             <NavItem key={tab.id} id={tab.id as any} label={tab.label} labelMm={tab.labelMm} icon={tab.icon} active={activeView === tab.id} onClick={() => setActiveView(tab.id as any)} />
@@ -328,12 +276,7 @@ const App: React.FC = () => {
               <span className="text-[9px] myanmar-font font-bold text-slate-500 mt-0.5">YBS Guide</span>
             </div>
           </div>
-          {isOfflineMode && (
-            <div className="flex items-center gap-2 px-3 py-1 bg-orange-500/20 border border-orange-500/30 rounded-full">
-              <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
-              <span className="text-xs font-bold text-orange-400">Offline</span>
-            </div>
-          )}
+
         </header>
 
         <main className="flex-1 overflow-y-auto custom-scrollbar bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950 pb-24 lg:pb-0">
@@ -356,7 +299,7 @@ const App: React.FC = () => {
   );
 };
 
-const ExploreDashboard: React.FC<{savedTrips: {from: string, to: string}[], onSelectSaved: (trip: {from: string, to: string}) => void; onShowOnMap?: (id:string) => void; onUseStop?: (stopName:string) => void; cachedDiscovery?: string | null; isOfflineMode?: boolean; notifications?: Notification[]}> = ({savedTrips, onSelectSaved, onShowOnMap, onUseStop, cachedDiscovery, isOfflineMode, notifications}) => {
+const ExploreDashboard: React.FC<{savedTrips: {from: string, to: string}[], onSelectSaved: (trip: {from: string, to: string}) => void; onShowOnMap?: (id:string) => void; onUseStop?: (stopName:string) => void; notifications?: Notification[]}> = ({savedTrips, onSelectSaved, onShowOnMap, onUseStop, notifications}) => {
   const [discovery, setDiscovery] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -365,17 +308,11 @@ const ExploreDashboard: React.FC<{savedTrips: {from: string, to: string}[], onSe
   const [nearestResults, setNearestResults] = useState<any[] | null>(null);
 
   useEffect(() => {
-    // Use cached discovery info if available and offline, otherwise fetch
-    if (cachedDiscovery && !isOnline()) {
-      setDiscovery(cachedDiscovery);
+    getDiscoveryInfo().then(res => {
+      setDiscovery(res);
       setLoading(false);
-    } else {
-      getDiscoveryInfo().then(res => {
-        setDiscovery(res);
-        setLoading(false);
-      });
-    }
-  }, [cachedDiscovery]);
+    });
+  }, []);
 
   const haversineKm = (lat1:number, lon1:number, lat2:number, lon2:number) => {
     const toRad = Math.PI / 180;
@@ -569,7 +506,7 @@ const ExploreDashboard: React.FC<{savedTrips: {from: string, to: string}[], onSe
   );
 };
 
-const RouteFinder: React.FC<{onTripSearched?: (trip: {from: string, to: string}) => void; onShowOnMap?: (id: string) => void; cachedRoutes?: BusRoute[] | null; isOfflineMode?: boolean}> = ({onTripSearched, onShowOnMap, cachedRoutes, isOfflineMode}) => {
+const RouteFinder: React.FC<{onTripSearched?: (trip: {from: string, to: string}) => void; onShowOnMap?: (id: string) => void}> = ({onTripSearched, onShowOnMap}) => {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [results, setResults] = useState<BusRoute[]>([]);
@@ -619,8 +556,8 @@ const RouteFinder: React.FC<{onTripSearched?: (trip: {from: string, to: string})
     const f = normalizeText(from);
     const t = normalizeText(to);
 
-    // Use cached routes if offline, otherwise use live data
-    const routesToSearch = (isOfflineMode && cachedRoutes) ? cachedRoutes : YBS_ROUTES;
+    // Use live data
+    const routesToSearch = YBS_ROUTES;
 
     const direct = routesToSearch.filter(route => {
       const fromIndex = findStopIndex(route.stops, f);
@@ -642,11 +579,17 @@ const RouteFinder: React.FC<{onTripSearched?: (trip: {from: string, to: string})
           const commonStops = bus1.stops.filter(stop1 =>
             bus2.stops.some(stop2 => normalizeText(stop1) === normalizeText(stop2))
           );
-          if (commonStops.length > 0) {
+          // Ensure the transfer stop is after 'from' in bus1 and before 'to' in bus2
+          const validTransfers = commonStops.filter(transferStop => {
+            const transferIndex1 = findStopIndex(bus1.stops, transferStop);
+            const transferIndex2 = findStopIndex(bus2.stops, transferStop);
+            return transferIndex1 > fromIndex1 && transferIndex2 < toIndex2;
+          });
+          if (validTransfers.length > 0) {
             transfers.push({
               firstBus: bus1.id,
               secondBus: bus2.id,
-              transferStop: commonStops[0]
+              transferStop: validTransfers[0]
             });
           }
         }
@@ -738,14 +681,13 @@ const RouteFinder: React.FC<{onTripSearched?: (trip: {from: string, to: string})
   );
 };
 
-const BusList: React.FC<{ onShowOnMap?: (id: string) => void; cachedRoutes?: BusRoute[] | null; isOfflineMode?: boolean }> = ({ onShowOnMap, cachedRoutes, isOfflineMode }) => {
+const BusList: React.FC<{ onShowOnMap?: (id: string) => void }> = ({ onShowOnMap }) => {
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedBus, setSelectedBus] = useState<BusRoute | null>(null);
   const filteredBuses = useMemo(() => {
-    const routesToSearch = (isOfflineMode && cachedRoutes) ? cachedRoutes : YBS_ROUTES;
-    return routesToSearch.filter(b => b.id.toLowerCase().includes(search.toLowerCase()) || b.stops.some(s => s.includes(search)));
-  }, [search, cachedRoutes, isOfflineMode]);
+    return YBS_ROUTES.filter(b => b.id.toLowerCase().includes(search.toLowerCase()) || b.stops.some(s => s.includes(search)));
+  }, [search]);
   const paginatedBuses = useMemo(() => filteredBuses.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE), [filteredBuses, currentPage]);
 
   return (
