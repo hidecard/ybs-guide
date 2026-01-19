@@ -1,10 +1,9 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { ViewMode, BusRoute, Notification, TransferResult } from './types';
-import { YBS_ROUTES } from './public/data/busData';
-import { chatWithAI, getDiscoveryInfo, cleanText } from './services/geminiService';
-import { submitFeedback, fetchFeedback, fetchNotifications } from './services/supabaseService';
-
+import { ViewMode, BusRoute } from './types';
+import { YBS_ROUTES } from './data/busData';
+import { getAIRouteSuggestion, chatWithAI, getDiscoveryInfo, cleanText } from './services/geminiService';
+import { submitFeedback, fetchFeedback } from './services/supabaseService';
 import BusMap from './components/BusMap';
 
 const ITEMS_PER_PAGE = 12;
@@ -201,21 +200,11 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : [];
   });
 
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-
-  // Fetch notifications
-  useEffect(() => {
-    fetchNotifications().then(notifs => {
-      setNotifications(notifs);
-    });
-  }, []);
-
   const tabs = [
     { id: ViewMode.EXPLORE, label: 'Explore', labelMm: 'လေ့လာရန်', icon: 'M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 002 2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
     { id: ViewMode.ROUTE_FINDER, label: 'Finder', labelMm: 'ရှာဖွေရန်', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
     { id: ViewMode.BUS_LIST, label: 'Lines', labelMm: 'လိုင်းများ', icon: 'M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z' },
-
-    // Which Bus view removed
+    // Map view removed
     { id: ViewMode.AI_ASSISTANT, label: 'Assistant', labelMm: 'အေအိုင်', icon: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z' },
     { id: ViewMode.FEEDBACK, label: 'Feedback', labelMm: 'အကြံပြုချက်', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z' },
   ];
@@ -234,10 +223,9 @@ const App: React.FC = () => {
 
   const renderContent = () => {
     switch (activeView) {
-      case ViewMode.EXPLORE: return <ExploreDashboard savedTrips={savedTrips} onSelectSaved={(t) => { localStorage.setItem('ybs_prefill_trip', JSON.stringify(t)); setActiveView(ViewMode.ROUTE_FINDER); }} onShowOnMap={showOnMap} onUseStop={(stopName: string) => { localStorage.setItem('ybs_nearest_from', stopName); setActiveView(ViewMode.ROUTE_FINDER); }} notifications={notifications} />;
+      case ViewMode.EXPLORE: return <ExploreDashboard savedTrips={savedTrips} onSelectSaved={(t) => { localStorage.setItem('ybs_prefill_trip', JSON.stringify(t)); setActiveView(ViewMode.ROUTE_FINDER); }} onShowOnMap={showOnMap} onUseStop={(stopName: string) => { localStorage.setItem('ybs_nearest_from', stopName); setActiveView(ViewMode.ROUTE_FINDER); }} />;
       case ViewMode.BUS_LIST: return <BusList onShowOnMap={showOnMap} />;
       case ViewMode.ROUTE_FINDER: return <RouteFinder onTripSearched={handleSaveTrip} onShowOnMap={showOnMap} />;
-
       case ViewMode.AI_ASSISTANT: return <AIAssistant />;
       case ViewMode.FEEDBACK: return <Feedback />;
       default: return <ExploreDashboard savedTrips={savedTrips} onSelectSaved={() => {}} onShowOnMap={showOnMap} onUseStop={() => {}} />;
@@ -276,7 +264,6 @@ const App: React.FC = () => {
               <span className="text-[9px] myanmar-font font-bold text-slate-500 mt-0.5">YBS Guide</span>
             </div>
           </div>
-
         </header>
 
         <main className="flex-1 overflow-y-auto custom-scrollbar bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950 pb-24 lg:pb-0">
@@ -299,7 +286,7 @@ const App: React.FC = () => {
   );
 };
 
-const ExploreDashboard: React.FC<{savedTrips: {from: string, to: string}[], onSelectSaved: (trip: {from: string, to: string}) => void; onShowOnMap?: (id:string) => void; onUseStop?: (stopName:string) => void; notifications?: Notification[]}> = ({savedTrips, onSelectSaved, onShowOnMap, onUseStop, notifications}) => {
+const ExploreDashboard: React.FC<{savedTrips: {from: string, to: string}[], onSelectSaved: (trip: {from: string, to: string}) => void; onShowOnMap?: (id:string) => void; onUseStop?: (stopName:string) => void}> = ({savedTrips, onSelectSaved, onShowOnMap, onUseStop}) => {
   const [discovery, setDiscovery] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -386,34 +373,6 @@ const ExploreDashboard: React.FC<{savedTrips: {from: string, to: string}[], onSe
 
   return (
     <div className="space-y-12 animate-fadeIn">
-      {/* Notifications Section */}
-      {notifications && notifications.length > 0 && (
-        <div className="space-y-4">
-          <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 ml-4 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.6)]"></span>
-            Notifications / အသိပေးချက်များ
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {notifications.slice(0, 4).map((notification, i) => (
-              <div key={notification.id} className="glass p-6 rounded-[32px] bg-red-500/10 border border-red-500/20">
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 bg-red-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                    </svg>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-white text-sm mb-2">{notification.title}</h4>
-                    <p className="text-xs text-slate-300 myanmar-font leading-relaxed">{notification.description}</p>
-                    <p className="text-[10px] text-slate-500 mt-2">{new Date(notification.created_at).toLocaleDateString()}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       <div className="space-y-10">
         {/* Unified Discovery Advisory Panel */}
         <div className="glass p-8 md:p-12 rounded-[48px] border border-white/10 relative overflow-hidden group bg-slate-900/40">
@@ -475,8 +434,8 @@ const ExploreDashboard: React.FC<{savedTrips: {from: string, to: string}[], onSe
            </h3>
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
              {savedTrips.length > 0 ? savedTrips.map((trip, i) => (
-               <button
-                 key={i}
+               <button 
+                 key={i} 
                  onClick={() => onSelectSaved(trip)}
                  className="glass p-6 rounded-[32px] hover:border-yellow-400/50 transition-all group flex items-center justify-between bg-white/5 border border-white/5"
                >
@@ -510,6 +469,7 @@ const RouteFinder: React.FC<{onTripSearched?: (trip: {from: string, to: string})
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [results, setResults] = useState<BusRoute[]>([]);
+  const [aiResult, setAiResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedBus, setSelectedBus] = useState<BusRoute | null>(null);
 
@@ -533,80 +493,23 @@ const RouteFinder: React.FC<{onTripSearched?: (trip: {from: string, to: string})
     }
   }, []);
 
-  const normalizeText = (text: string) => {
-    return text.toLowerCase().trim().replace(/\s+/g, ' ');
-  };
-
-  const findStopIndex = (stops: string[], searchTerm: string) => {
-    const normalizedSearch = normalizeText(searchTerm);
-    return stops.findIndex(stop => {
-      const normalizedStop = normalizeText(stop);
-      return normalizedStop.includes(normalizedSearch) ||
-             normalizedSearch.includes(normalizedStop) ||
-             normalizedStop.split(' ').some(word => normalizedSearch.includes(word)) ||
-             normalizedSearch.split(' ').some(word => normalizedStop.includes(word));
-    });
-  };
-
   const handleSearch = async () => {
     if (!from || !to) return;
     setLoading(true);
+    setAiResult(null);
     onTripSearched?.({from, to});
 
-    const f = normalizeText(from);
-    const t = normalizeText(to);
-
-    // Use live data
-    const routesToSearch = YBS_ROUTES;
-
-    const direct = routesToSearch.filter(route => {
-      const fromIndex = findStopIndex(route.stops, f);
-      const toIndex = findStopIndex(route.stops, t);
+    const f = from.toLowerCase().trim();
+    const t = to.toLowerCase().trim();
+    const direct = YBS_ROUTES.filter(route => {
+      const fromIndex = route.stops.findIndex(s => s.toLowerCase().includes(f));
+      const toIndex = route.stops.findIndex(s => s.toLowerCase().includes(t));
       return fromIndex !== -1 && toIndex !== -1 && fromIndex < toIndex;
     });
+    setResults(direct);
 
-    // Find transfer routes
-    const transfers: TransferResult[] = [];
-    for (const bus1 of routesToSearch) {
-      for (const bus2 of routesToSearch) {
-        if (bus1.id === bus2.id) continue;
-
-        const fromIndex1 = findStopIndex(bus1.stops, f);
-        const toIndex2 = findStopIndex(bus2.stops, t);
-
-        // Check for transfer: bus1 has 'from', bus2 has 'to', and they share a common stop
-        if (fromIndex1 !== -1 && toIndex2 !== -1) {
-          const commonStops = bus1.stops.filter(stop1 =>
-            bus2.stops.some(stop2 => normalizeText(stop1) === normalizeText(stop2))
-          );
-          // Ensure the transfer stop is after 'from' in bus1 and before 'to' in bus2
-          const validTransfers = commonStops.filter(transferStop => {
-            const transferIndex1 = findStopIndex(bus1.stops, transferStop);
-            const transferIndex2 = findStopIndex(bus2.stops, transferStop);
-            return transferIndex1 > fromIndex1 && transferIndex2 < toIndex2;
-          });
-          if (validTransfers.length > 0) {
-            transfers.push({
-              firstBus: bus1.id,
-              secondBus: bus2.id,
-              transferStop: validTransfers[0]
-            });
-          }
-        }
-      }
-    }
-
-    // Combine direct and transfer results
-    const allResults = [...direct];
-    transfers.forEach(transfer => {
-      const firstBus = routesToSearch.find(r => r.id === transfer.firstBus);
-      const secondBus = routesToSearch.find(r => r.id === transfer.secondBus);
-      if (firstBus && secondBus && !allResults.some(r => r.id === firstBus.id) && !allResults.some(r => r.id === secondBus.id)) {
-        allResults.push(firstBus, secondBus);
-      }
-    });
-
-    setResults(allResults);
+    const aiSuggestion = await getAIRouteSuggestion(from, to);
+    setAiResult(aiSuggestion);
     setLoading(false);
   };
 
@@ -642,7 +545,7 @@ const RouteFinder: React.FC<{onTripSearched?: (trip: {from: string, to: string})
               </div>
             </div>
             <button onClick={handleSearch} disabled={loading} className="w-full bg-yellow-400 text-slate-950 py-5 rounded-3xl font-black uppercase tracking-widest text-sm hover:brightness-110 active:scale-95 transition-all shadow-xl shadow-yellow-400/20">
-              {loading ? 'Searching Routes...' : 'Calculate Path / လမ်းကြောင်းရှာရန်'}
+              {loading ? 'Analyzing Data...' : 'Calculate Path / လမ်းကြောင်းရှာရန်'}
             </button>
           </div>
         </div>
@@ -650,8 +553,14 @@ const RouteFinder: React.FC<{onTripSearched?: (trip: {from: string, to: string})
         <div className="xl:col-span-3 space-y-6">
           {loading ? (
              <div className="space-y-4">{[1,2,3].map(i => <div key={i} className="h-32 glass rounded-3xl loading-shimmer"></div>)}</div>
-          ) : results.length > 0 ? (
+          ) : results.length > 0 || aiResult ? (
             <div className="space-y-6">
+              {aiResult && (
+                <div className="glass-bright p-8 rounded-[40px] border border-white/10 space-y-6 relative bg-slate-900/40">
+                  <div className="flex items-center gap-3"><div className="h-0.5 w-10 bg-yellow-400"></div><span className="text-[10px] font-black tracking-widest uppercase text-yellow-400">AI Telemetry / အေအိုင် အကြံပြုချက်</span></div>
+                  <div className="text-lg myanmar-font font-semibold text-slate-200 whitespace-pre-wrap leading-relaxed">{aiResult}</div>
+                </div>
+              )}
               <div className="grid grid-cols-1 gap-4">
                 {results.map(bus => (
                   <div key={bus.id} className="glass p-6 rounded-3xl group hover:border-yellow-400/40 transition-all flex items-center justify-between bg-white/5">
@@ -685,9 +594,7 @@ const BusList: React.FC<{ onShowOnMap?: (id: string) => void }> = ({ onShowOnMap
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedBus, setSelectedBus] = useState<BusRoute | null>(null);
-  const filteredBuses = useMemo(() => {
-    return YBS_ROUTES.filter(b => b.id.toLowerCase().includes(search.toLowerCase()) || b.stops.some(s => s.includes(search)));
-  }, [search]);
+  const filteredBuses = useMemo(() => YBS_ROUTES.filter(b => b.id.toLowerCase().includes(search.toLowerCase()) || b.stops.some(s => s.includes(search))), [search]);
   const paginatedBuses = useMemo(() => filteredBuses.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE), [filteredBuses, currentPage]);
 
   return (
@@ -781,7 +688,9 @@ const AIAssistant: React.FC = () => {
             <button
               onClick={() => {
                 const p = (window as any).puter;
-                if (typeof p !== 'undefined' && p?.ai) {
+                if (typeof p !== 'undefined' && p?.ui && p.ui.showTerms) {
+                  p.ui.showTerms();
+                } else if (p?.ai) {
                   p.ai.chat("Hello", { model: 'gemini-3-flash-preview' });
                 }
               }}
@@ -966,14 +875,6 @@ const Feedback: React.FC = () => {
                 <span className="text-sm font-bold text-white">Web App</span>
               </div>
               <div className="flex justify-between items-center py-2 border-b border-white/5">
-                <span className="text-sm text-slate-400">Telegram Channel</span>
-                <a href="https://t.me/ybsguide" target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-yellow-400 hover:text-yellow-300">@ybsguide</a>
-              </div>
-              <div className="flex justify-between items-center py-2 border-b border-white/5">
-                <span className="text-sm text-slate-400">Telegram Bot</span>
-                <a href="https://t.me/ybsguide_bot" target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-yellow-400 hover:text-yellow-300">@ybsguide_bot</a>
-              </div>
-              <div className="flex justify-between items-center py-2 border-b border-white/5">
                 <span className="text-sm text-slate-400">Technology</span>
                 <span className="text-sm font-bold text-white">React + TypeScript</span>
               </div>
@@ -1008,43 +909,43 @@ const Feedback: React.FC = () => {
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Contact & Links */}
-          <div className="glass p-8 rounded-[40px] border border-white/10">
-            <h4 className="text-lg font-black uppercase tracking-tight mb-6 text-yellow-400">Get In Touch / ဆက်သွယ်ရန်</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-              <div className="text-center space-y-3">
-                <div className="w-12 h-12 bg-yellow-400 rounded-xl flex items-center justify-center mx-auto">
-                  <svg className="w-6 h-6 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-white">Email</p>
-                  <p className="text-xs text-slate-400">arkaryan.info@gmail.com</p>
-                </div>
+        {/* Contact & Links */}
+        <div className="glass p-8 rounded-[40px] border border-white/10">
+          <h4 className="text-lg font-black uppercase tracking-tight mb-6 text-yellow-400">Get In Touch / ဆက်သွယ်ရန်</h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="text-center space-y-3">
+              <div className="w-12 h-12 bg-yellow-400 rounded-xl flex items-center justify-center mx-auto">
+                <svg className="w-6 h-6 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
               </div>
-              <div className="text-center space-y-3">
-                <div className="w-12 h-12 bg-yellow-400 rounded-xl flex items-center justify-center mx-auto">
-                  <svg className="w-6 h-6 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-white">Website</p>
-                  <p className="text-xs text-slate-400">arkaryan.vercel.app</p>
-                </div>
+              <div>
+                <p className="text-sm font-bold text-white">Email</p>
+                <p className="text-xs text-slate-400">arkaryan.info@gmail.com</p>
               </div>
-              <div className="text-center space-y-3">
-                <div className="w-12 h-12 bg-yellow-400 rounded-xl flex items-center justify-center mx-auto">
-                  <svg className="w-6 h-6 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-white">Support</p>
-                  <p className="text-xs text-slate-400">24/7 Available</p>
-                </div>
+            </div>
+            <div className="text-center space-y-3">
+              <div className="w-12 h-12 bg-yellow-400 rounded-xl flex items-center justify-center mx-auto">
+                <svg className="w-6 h-6 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-bold text-white">Website</p>
+                <p className="text-xs text-slate-400">arkaryan.vercel.app</p>
+              </div>
+            </div>
+            <div className="text-center space-y-3">
+              <div className="w-12 h-12 bg-yellow-400 rounded-xl flex items-center justify-center mx-auto">
+                <svg className="w-6 h-6 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-bold text-white">Support</p>
+                <p className="text-xs text-slate-400">24/7 Available</p>
               </div>
             </div>
           </div>
@@ -1053,7 +954,5 @@ const Feedback: React.FC = () => {
     </div>
   );
 };
-
-
 
 export default App;
