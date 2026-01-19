@@ -76,8 +76,14 @@ YBS ဘတ်စ်လမ်းကြောင်း အကြံပြုပါ
 `;
 
   try {
-    const response = await puter.ai.chat(context + "\n\n" + prompt, { model: 'gemini-3-flash-preview' });
-    return cleanText(response || "");
+    const response = await puter.ai.chat(context + "\n\n" + prompt, { model: 'gemini-3-flash-preview', stream: true });
+    let fullResponse = "";
+    for await (const part of response) {
+      if (part?.text) {
+        fullResponse += part.text;
+      }
+    }
+    return cleanText(fullResponse || "");
   } catch (error) {
     return "AI ဝန်ဆောင်မှု မရနိုင်သေးပါ။ / AI service is currently unavailable.";
   }
@@ -99,8 +105,14 @@ Bus Context:\n${context}\n\nCurrent Weather: ${weather}\n\nUser Question: ${mess
 `;
 
   try {
-    const response = await puter.ai.chat(prompt, { model: 'gemini-3-flash-preview' });
-    return cleanText(response || "");
+    const response = await puter.ai.chat(prompt, { model: 'gemini-3-flash-preview', stream: true });
+    let fullResponse = "";
+    for await (const part of response) {
+      if (part?.text) {
+        fullResponse += part.text;
+      }
+    }
+    return cleanText(fullResponse || "");
   } catch (error) {
     return "အမှားအယွင်းရှိနေပါသည်။ / System error.";
   }
@@ -123,8 +135,14 @@ Based on this weather data: "${weather}". Provide a transit advisory.
 `;
 
   try {
-    const response = await puter.ai.chat(prompt, { model: 'gemini-3-flash-preview' });
-    return cleanText(response || "");
+    const response = await puter.ai.chat(prompt, { model: 'gemini-3-flash-preview', stream: true });
+    let fullResponse = "";
+    for await (const part of response) {
+      if (part?.text) {
+        fullResponse += part.text;
+      }
+    }
+    return cleanText(fullResponse || "");
   } catch (error) {
     return "Discovery info unavailable. / အချက်အလက်များ မရနိုင်ပါ။";
   }
