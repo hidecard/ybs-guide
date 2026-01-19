@@ -649,7 +649,7 @@ const AIAssistant: React.FC = () => {
   useEffect(() => {
     const checkPuter = () => {
       const p = (window as any).puter;
-      if (typeof p !== 'undefined' && p?.ai) {
+      if (typeof p !== 'undefined' && p?.auth && p.auth.isSignedIn && p.auth.isSignedIn()) {
         setPuterAvailable(true);
       } else {
         setPuterAvailable(false);
@@ -688,7 +688,9 @@ const AIAssistant: React.FC = () => {
             <button
               onClick={() => {
                 const p = (window as any).puter;
-                if (typeof p !== 'undefined' && p?.ui && p.ui.showTerms) {
+                if (typeof p !== 'undefined' && p?.auth && p.auth.login) {
+                  p.auth.login();
+                } else if (p?.ui && p.ui.showTerms) {
                   p.ui.showTerms();
                 } else if (p?.ai) {
                   p.ai.chat("Hello", { model: 'gemini-3-flash-preview' });
